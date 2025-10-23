@@ -2388,6 +2388,13 @@
 
                     // Show fixation
                     this.clearGameArea();
+
+                    // Trial counter
+                    const counter = document.createElement('div');
+                    counter.className = 'trial-counter';
+                    counter.textContent = `Trial ${i + 1} of ${trials}`;
+                    this.elements.gameArea.appendChild(counter);
+
                     const fixation = document.createElement('div');
                     fixation.className = 'fixation';
                     fixation.textContent = '+';
@@ -2399,14 +2406,30 @@
 
                     // Show stimulus
                     this.clearGameArea();
+
+                    // Trial counter
+                    const counter2 = document.createElement('div');
+                    counter2.className = 'trial-counter';
+                    counter2.textContent = `Trial ${i + 1} of ${trials}`;
+                    this.elements.gameArea.appendChild(counter2);
+
                     const cptArea = document.createElement('div');
                     cptArea.className = 'cpt-area';
 
                     const stimulus = document.createElement('div');
-                    stimulus.className = `cpt-stimulus ${isTarget ? 'target' : 'non-target'}`;
+                    stimulus.className = `cpt-stimulus stimulus-enter ${isTarget ? 'target' : 'non-target'}`;
                     stimulus.textContent = letter;
                     cptArea.appendChild(stimulus);
                     this.elements.gameArea.appendChild(cptArea);
+
+                    // Hint
+                    const hint = document.createElement('div');
+                    hint.style.textAlign = 'center';
+                    hint.style.fontSize = '0.875rem';
+                    hint.style.color = 'var(--text-muted)';
+                    hint.style.marginTop = '1rem';
+                    hint.textContent = `Press SPACE for "${targetLetter}"`;
+                    this.elements.gameArea.appendChild(hint);
 
                     // Collect response
                     const trialStart = performance.now();
@@ -2587,21 +2610,34 @@
                 if (isPractice) {
                     const practice = document.createElement('div');
                     practice.className = 'practice-badge';
-                    practice.textContent = 'Practice';
+                    practice.textContent = 'Practice Mode';
                     this.elements.gameArea.appendChild(practice);
                 }
 
+                // Congruency indicator
+                const congruencyHint = document.createElement('div');
+                congruencyHint.style.textAlign = 'center';
+                congruencyHint.style.fontSize = '0.75rem';
+                congruencyHint.style.color = 'var(--text-light)';
+                congruencyHint.style.marginBottom = '1rem';
+                congruencyHint.style.fontStyle = 'italic';
+                congruencyHint.textContent = trial.congruent ? '(Match)' : '(Conflict!)';
+                this.elements.gameArea.appendChild(congruencyHint);
+
                 const stimulus = document.createElement('div');
-                stimulus.className = 'stimulus';
+                stimulus.className = 'stimulus stimulus-enter';
                 stimulus.textContent = trial.word;
                 stimulus.style.color = trial.color;
+                stimulus.style.fontWeight = '700';
                 this.elements.gameArea.appendChild(stimulus);
 
                 const instructions = document.createElement('div');
                 instructions.style.textAlign = 'center';
                 instructions.style.marginTop = '2rem';
                 instructions.style.color = 'var(--text-muted)';
-                instructions.textContent = 'R = Red  |  B = Blue  |  G = Green  |  Y = Yellow';
+                instructions.style.fontSize = '0.875rem';
+                instructions.style.fontWeight = '600';
+                instructions.innerHTML = '<strong>Name the COLOR:</strong><br>R = Red  |  B = Blue  |  G = Green  |  Y = Yellow';
                 this.elements.gameArea.appendChild(instructions);
 
                 // Collect response
@@ -2613,8 +2649,15 @@
 
                 // Feedback for practice trials
                 if (isPractice) {
-                    this.showFeedback(correct ? 'Correct!' : 'Incorrect', correct ? 'success' : 'error');
-                    await this.delay(1000);
+                    this.clearGameArea();
+                    const feedbackEl = document.createElement('div');
+                    feedbackEl.style.textAlign = 'center';
+                    feedbackEl.style.fontSize = '1.5rem';
+                    feedbackEl.style.padding = '2rem';
+                    feedbackEl.style.color = correct ? 'var(--success)' : 'var(--error)';
+                    feedbackEl.textContent = correct ? '✓ Correct!' : '✗ Incorrect - Name the COLOR, not the word!';
+                    this.elements.gameArea.appendChild(feedbackEl);
+                    await this.delay(1200);
                 }
 
                 // ISI
