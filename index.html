@@ -1333,7 +1333,7 @@
 
                 // Timing standards (milliseconds)
                 TIMING: {
-                    ISI: 1500,              // Inter-stimulus interval (n-back standard)
+                    ISI: 1500,              // Inter-stimulus interval (research standard)
                     STIMULUS_DURATION: 500, // Stimulus presentation time
                     FIXATION: 500,          // Fixation cross duration
                     ITI: 1000,              // Inter-trial interval
@@ -1806,226 +1806,6 @@
                 }
             },
 
-            /**
-             * N-BACK TASK
-             * Research-based working memory assessment
-             * Standards: 1500ms ISI, 500ms stimulus duration, adaptive difficulty
-             */
-            async runNBack() {
-                const nLevel = 2; // Start at 2-back (standard for ages 9+)
-                const trials = this.CONFIG.PARAMS.N_BACK_TRIALS + nLevel;
-                const targetProbability = 0.30; // 30% targets (standard)
-
-                // Initialize task state
-                const taskState = {
-                    level: nLevel,
-                    trials: [],
-                    responses: [],
-                    reactionTimes: [],
-                    hits: 0,
-                    misses: 0,
-                    falseAlarms: 0,
-                    correctRejections: 0,
-                    startTime: performance.now()
-                };
-
-                // Generate sequence
-                const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'K', 'L', 'M', 'N'];
-                const sequence = [];
-
-                for (let i = 0; i < trials; i++) {
-                    const isTarget = i >= nLevel && Math.random() < targetProbability;
-
-                    if (isTarget) {
-                        sequence.push(sequence[i - nLevel]);
-                    } else {
-                        let letter;
-                        do {
-                            letter = letters[Math.floor(Math.random() * letters.length)];
-                        } while (i >= nLevel && letter === sequence[i - nLevel]);
-                        sequence.push(letter);
-                    }
-                }
-
-                // Show instructions
-                await this.showInstructions(
-                    `${nLevel}-Back Working Memory`,
-                    `Press SPACE when the current letter matches the letter from ${nLevel} positions back.\n\nLet's practice first!`
-                );
-
-                // Practice trials
-                await this.runNBackTrials(sequence.slice(0, nLevel + 5), nLevel, true);
-
-                await this.showMessage('Great! Now let\'s begin the real task.', 2000);
-
-                // Real trials
-                await this.runNBackTrials(sequence, nLevel, false);
-
-                // Calculate performance
-                const accuracy = taskState.hits + taskState.correctRejections > 0
-                    ? (taskState.hits + taskState.correctRejections) / trials
-                    : 0;
-
-                const hitRate = Math.max(0.01, Math.min(0.99,
-                    taskState.hits / Math.max(1, taskState.hits + taskState.misses)));
-                const faRate = Math.max(0.01, Math.min(0.99,
-                    taskState.falseAlarms / Math.max(1, taskState.falseAlarms + taskState.correctRejections)));
-
-                // d-prime calculation (signal detection theory)
-                const dPrime = this.calculateDPrime(hitRate, faRate);
-
-                // Calculate median RT (more robust than mean)
-                const medianRT = this.calculateMedian(taskState.reactionTimes.filter(rt => rt > 0));
-
-                // Composite score (normalized 0-100)
-                const score = this.calculateNBackScore(dPrime, medianRT, nLevel);
-
-                // Save results
-                this.state.taskData['nback'] = {
-                    score: score,
-                    dPrime: dPrime,
-                    accuracy: accuracy,
-                    hitRate: hitRate,
-                    falseAlarmRate: faRate,
-                    medianRT: medianRT,
-                    level: nLevel,
-                    trials: trials,
-                    timestamp: new Date().toISOString()
-                };
-
-                console.log('N-Back complete:', this.state.taskData['nback']);
-
-                // Celebrate task completion
-                this.celebrate();
-                this.showFeedback(`Task complete! Score: ${score.toFixed(1)}`, 'success');
-                await this.delay(2000);
-                this.showScreen('menu');
-                this.renderTasks();
-            },
-
-            async runNBackTrials(sequence, nLevel, isPractice) {
-                let hits = 0, misses = 0, falseAlarms = 0, correctRejections = 0;
-                let reactionTimes = [];
-
-                for (let i = 0; i < sequence.length; i++) {
-                    this.updateProgress(i + 1, sequence.length);
-
-                    const letter = sequence[i];
-                    const isTarget = i >= nLevel && letter === sequence[i - nLevel];
-
-                    // Show fixation
-                    this.clearGameArea();
-
-                    // Trial counter
-                    const counter = document.createElement('div');
-                    counter.className = 'trial-counter';
-                    counter.textContent = isPractice
-                        ? `Practice - Trial ${i + 1} of ${sequence.length}`
-                        : `Trial ${i + 1} of ${sequence.length}`;
-                    this.elements.gameArea.appendChild(counter);
-
-                    const fixation = document.createElement('div');
-                    fixation.className = 'fixation';
-                    fixation.textContent = '+';
-                    this.elements.gameArea.appendChild(fixation);
-
-                    await this.delay(this.CONFIG.TIMING.FIXATION);
-
-                    // Show stimulus
-                    this.clearGameArea();
-
-                    if (isPractice) {
-                        const practice = document.createElement('div');
-                        practice.className = 'practice-badge';
-                        practice.textContent = 'Practice Mode';
-                        this.elements.gameArea.appendChild(practice);
-                    }
-
-                    // Show recent history for context
-                    if (i >= nLevel) {
-                        const historyDiv = document.createElement('div');
-                        historyDiv.style.textAlign = 'center';
-                        historyDiv.style.fontSize = '0.875rem';
-                        historyDiv.style.color = 'var(--text-muted)';
-                        historyDiv.style.marginBottom = '1rem';
-                        historyDiv.textContent = `${nLevel} back: ${sequence[i - nLevel]}`;
-                        this.elements.gameArea.appendChild(historyDiv);
-                    }
-
-                    const stimulus = document.createElement('div');
-                    stimulus.className = 'stimulus stimulus-enter';
-                    stimulus.textContent = letter;
-                    this.elements.gameArea.appendChild(stimulus);
-
-                    const hint = document.createElement('div');
-                    hint.style.textAlign = 'center';
-                    hint.style.fontSize = '0.875rem';
-                    hint.style.color = 'var(--text-muted)';
-                    hint.style.marginTop = '1rem';
-                    hint.textContent = 'Press SPACE if this matches';
-                    this.elements.gameArea.appendChild(hint);
-
-                    // Collect response
-                    const trialStart = performance.now();
-                    const response = await this.waitForResponse(
-                        [' '],
-                        this.CONFIG.TIMING.STIMULUS_DURATION + this.CONFIG.TIMING.ISI
-                    );
-                    const rt = response ? performance.now() - trialStart : 0;
-
-                    // Score trial
-                    let trialResult = null;
-                    if (isTarget && response) {
-                        hits++;
-                        if (rt > 0) reactionTimes.push(rt);
-                        trialResult = 'hit';
-                    } else if (isTarget && !response) {
-                        misses++;
-                        trialResult = 'miss';
-                    } else if (!isTarget && response) {
-                        falseAlarms++;
-                        trialResult = 'false-alarm';
-                    } else {
-                        correctRejections++;
-                        trialResult = 'correct-rejection';
-                    }
-
-                    // Show immediate feedback in practice mode
-                    if (isPractice && i >= nLevel) {
-                        this.clearGameArea();
-                        const feedbackEl = document.createElement('div');
-                        feedbackEl.style.textAlign = 'center';
-                        feedbackEl.style.fontSize = '1.5rem';
-                        feedbackEl.style.padding = '2rem';
-
-                        if (trialResult === 'hit' || trialResult === 'correct-rejection') {
-                            feedbackEl.style.color = 'var(--success)';
-                            feedbackEl.textContent = trialResult === 'hit' ? '✓ Correct - Match!' : '✓ Correct - No match';
-                        } else {
-                            feedbackEl.style.color = 'var(--error)';
-                            feedbackEl.textContent = trialResult === 'miss'
-                                ? '✗ Missed - That was a match!'
-                                : '✗ False alarm - Not a match';
-                        }
-
-                        this.elements.gameArea.appendChild(feedbackEl);
-                        await this.delay(800);
-                    }
-
-                    // Brief ISI
-                    this.clearGameArea();
-                    await this.delay(this.CONFIG.TIMING.ISI - this.CONFIG.TIMING.STIMULUS_DURATION);
-                }
-
-                // Update task state (only if not practice)
-                if (!isPractice && this.state.taskData['nback']) {
-                    this.state.taskData['nback'].hits = hits;
-                    this.state.taskData['nback'].misses = misses;
-                    this.state.taskData['nback'].falseAlarms = falseAlarms;
-                    this.state.taskData['nback'].correctRejections = correctRejections;
-                    this.state.taskData['nback'].reactionTimes = reactionTimes;
-                }
-            },
 
             /**
              * DIGIT SPAN TASK
@@ -2042,8 +1822,8 @@
 
                 // Instructions
                 await this.showInstructions(
-                    'Digit Span - Forward',
-                    'You will see a sequence of numbers.\nRemember them in order.\n\nThen enter them using the number pad.'
+                    'Number Memory - Forward',
+                    'You will see numbers one at a time.\nRemember them in order.\n\nThen type them back using the number buttons.'
                 );
 
                 // Forward span
@@ -2052,8 +1832,8 @@
                 await this.showMessage('Great! Now let\'s try backward span.', 2000);
 
                 await this.showInstructions(
-                    'Digit Span - Backward',
-                    'Now enter the digits in REVERSE order.\n\nFor example, if you see 1-2-3,\nenter 3-2-1.'
+                    'Number Memory - Backwards',
+                    'Now type the numbers in BACKWARDS order.\n\nFor example, if you see 1-2-3,\ntype 3-2-1.'
                 );
 
                 // Backward span
@@ -2436,8 +2216,8 @@
 
                 // Instructions
                 await this.showInstructions(
-                    'Sustained Attention Test (CPT)',
-                    `Press SPACE when you see the letter "${targetLetter}".\n\nIgnore all other letters.\n\nStay focused!`
+                    'Focus Challenge',
+                    `Press SPACE when you see the letter "${targetLetter}".\n\nDon't press anything for other letters.\n\nStay focused - you got this!`
                 );
 
                 // Run trials
@@ -2593,8 +2373,8 @@
 
                 // Instructions
                 await this.showInstructions(
-                    'Stroop Task - Inhibitory Control',
-                    'Press the key for the COLOR of the text, not the word.\n\n' +
+                    'Color Game',
+                    'Press the key for the COLOR you see, NOT the word.\n\n' +
                     'R = Red, B = Blue, G = Green, Y = Yellow\n\n' +
                     'Ignore what the word says!'
                 );
@@ -2746,8 +2526,8 @@
 
                 // Instructions
                 await this.showInstructions(
-                    'Task Switching - Cognitive Flexibility',
-                    'You will see numbers and two possible rules:\n\n' +
+                    'Rule Switch Game',
+                    'You will see numbers and two different rules:\n\n' +
                     'COLOR rule: Is the number RED or BLUE?\n' +
                     'MAGNITUDE rule: Is the number HIGH (≥5) or LOW (<5)?\n\n' +
                     'The rule will be shown before each number.'
@@ -2934,9 +2714,9 @@
 
                 // Instructions
                 await this.showInstructions(
-                    'Processing Speed - Choice RT',
-                    'Press the arrow key matching the arrow shown.\n\n' +
-                    'Respond as QUICKLY and ACCURATELY as possible!'
+                    'Quick Reaction Game',
+                    'Press the arrow key that matches the arrow on screen.\n\n' +
+                    'Go as FAST and ACCURATE as you can!'
                 );
 
                 await this.showMessage('Get ready!', 2000);
@@ -3090,16 +2870,6 @@
 
             // Task-specific scoring functions
 
-            calculateNBackScore(dPrime, medianRT, nLevel) {
-                // Normalize d-prime (typical range 0-4)
-                const dPrimeScore = Math.max(0, Math.min(100, (dPrime / 4) * 100));
-
-                // Normalize RT (faster is better, typical range 500-1500ms)
-                const rtScore = Math.max(0, Math.min(100, ((1500 - medianRT) / 1000) * 100));
-
-                // Weight: 70% accuracy (d-prime), 30% speed
-                return (dPrimeScore * 0.7) + (rtScore * 0.3);
-            },
 
             calculateDigitSpanScore(forwardSpan, backwardSpan, age) {
                 const totalSpan = forwardSpan + backwardSpan;
@@ -3349,26 +3119,20 @@
 
                 // Domain-specific recommendations based on research
                 const recMap = {
-                    'nback': 'Practice chunking strategies and rehearsal techniques. Try memory palace methods.',
-                    'digitspan': 'Use verbal rehearsal and grouping strategies. Practice with phone numbers and sequences.',
-                    'cpt': 'Practice sustained focus with Pomodoro technique (25-min intervals). Try mindfulness meditation.',
-                    'stroop': 'Play games requiring response inhibition. Practice "Simon Says" type activities.',
-                    'taskswitching': 'Practice multitasking activities that require rule switching. Try puzzle games.',
-                    'choicert': 'Engage in reaction time games and sports. Practice timed academic tasks.'
+                    'digitspan': 'Practice remembering longer sequences of numbers. Try memorizing phone numbers!',
+                    'cpt': 'Practice focusing for longer periods. Try reading without distractions.',
+                    'stroop': 'Play games that make you think twice before responding. Simon Says is great!',
+                    'taskswitching': 'Practice switching between different activities quickly. Try puzzle games!',
+                    'choicert': 'Play reaction time games and sports. Practice making quick decisions.'
                 };
 
                 if (lowestTask.score < 70) {
-                    recommendations.push(`Focus on ${lowestTask.task.domain}: ${recMap[lowestTask.id]}`);
+                    recommendations.push(`${lowestTask.task.name}: ${recMap[lowestTask.id]}`);
                 }
 
-                // Check for specific patterns
-                const workingMemoryTasks = ['nback', 'digitspan'];
-                const wmScores = workingMemoryTasks
-                    .filter(id => scores[id])
-                    .map(id => scores[id].score);
-
-                if (wmScores.length > 0 && wmScores.every(s => s < 70)) {
-                    recommendations.push('Consider working memory training programs (e.g., Cogmed, dual n-back).');
+                // Check for working memory specifically
+                if (scores['digitspan'] && scores['digitspan'].score < 70) {
+                    recommendations.push('Try memory games and practice remembering shopping lists or directions.');
                 }
 
                 // Render recommendations
