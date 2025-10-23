@@ -117,35 +117,8 @@ function createBrainGamesForm() {
     Logger.log('4. Post the announcement to Canvas!');
     Logger.log('========================================\n');
 
-    // Also show in UI
-    const html = '<div style="font-family: Arial; padding: 20px;">' +
-      '<h2>✅ Form Created!</h2>' +
-      '<p><strong>Form URL:</strong><br><a href="' + shortUrl + '" target="_blank">' + shortUrl + '</a></p>' +
-      '<p><strong>Responses Sheet:</strong><br><a href="' + spreadsheet.getUrl() + '" target="_blank">' + spreadsheet.getName() + '</a></p>' +
-      '<hr>' +
-      '<h3>⚠️ IMPORTANT: Add File Upload Question</h3>' +
-      '<p>Google Forms API cannot add file upload questions automatically.</p>' +
-      '<p><strong>Steps to add it:</strong></p>' +
-      '<ol>' +
-      '<li>Open the form (click link above)</li>' +
-      '<li>Click the <strong>+</strong> button to add a question</li>' +
-      '<li>Choose <strong>"File upload"</strong> from the question type dropdown</li>' +
-      '<li>Title: <code>Upload Your Score File (CSV)</code></li>' +
-      '<li>Click ⋮ menu → <strong>"Response validation"</strong></li>' +
-      '<li>Set: <strong>File upload → Specific file types → Document</strong></li>' +
-      '<li>In text box type: <code>.csv</code></li>' +
-      '<li>Set: <strong>Maximum number of files → 1</strong></li>' +
-      '<li>Set: <strong>Maximum file size → 10 MB</strong></li>' +
-      '<li>Toggle <strong>"Required"</strong> ON</li>' +
-      '</ol>' +
-      '<p>Check the <strong>Logs</strong> (View → Logs) for full details!</p>' +
-      '</div>';
-
-    const htmlOutput = HtmlService.createHtmlOutput(html)
-      .setWidth(600)
-      .setHeight(500);
-
-    SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Form Created - Action Required');
+    // Note: Cannot show UI dialog when running from script.google.com
+    // All instructions are in the logs above (View → Logs)
 
     return {
       formUrl: shortUrl,
