@@ -1224,6 +1224,43 @@
                         <div class="chart-bars" id="chartBars"></div>
                     </div>
 
+                    <!-- Feedback Form -->
+                    <div id="feedbackSection" class="feedback-section" style="margin-top: 3rem; padding: 2rem; background: var(--surface); border-radius: var(--radius-lg); border: 2px solid var(--border-light);">
+                        <h3 style="text-align: center; margin-bottom: 1.5rem; color: var(--primary);">Help Us Make This Better!</h3>
+                        <p style="text-align: center; margin-bottom: 2rem; color: var(--text-muted);">Your feedback helps us improve for other students. This is optional!</p>
+
+                        <form id="feedbackForm">
+                            <div class="form-group">
+                                <label class="form-label">What did you like best?</label>
+                                <textarea id="feedbackLiked" class="form-input" rows="2" placeholder="The fun parts..."></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">What was confusing or hard?</label>
+                                <textarea id="feedbackConfusing" class="form-input" rows="2" placeholder="Things that didn't make sense..."></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">How would you rate the difficulty? (1 = Too Easy, 5 = Too Hard)</label>
+                                <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 0.5rem;">
+                                    <label style="cursor: pointer;"><input type="radio" name="difficulty" value="1"> 1</label>
+                                    <label style="cursor: pointer;"><input type="radio" name="difficulty" value="2"> 2</label>
+                                    <label style="cursor: pointer;"><input type="radio" name="difficulty" value="3" checked> 3</label>
+                                    <label style="cursor: pointer;"><input type="radio" name="difficulty" value="4"> 4</label>
+                                    <label style="cursor: pointer;"><input type="radio" name="difficulty" value="5"> 5</label>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Any other suggestions?</label>
+                                <textarea id="feedbackOther" class="form-input" rows="2" placeholder="Ideas for making it better..."></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-success btn-block" style="margin-top: 1rem;">Submit Feedback</button>
+                            <p id="feedbackThanks" style="display: none; text-align: center; margin-top: 1rem; color: var(--success); font-weight: 600;">Thank you! Your feedback has been saved!</p>
+                        </form>
+                    </div>
+
                     <div style="text-align: center; margin-top: 2rem; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
                         <button id="exportBtn" class="btn">Export Data (CSV)</button>
                         <button id="exportJSONBtn" class="btn">Export Data (JSON)</button>
@@ -1254,46 +1291,39 @@
             CONFIG: {
                 TASKS: [
                     {
-                        id: 'nback',
-                        name: 'Working Memory (N-Back)',
-                        icon: '🧩',
-                        description: 'Remember and match stimuli from N positions back',
-                        domain: 'Working Memory'
+                        id: 'choicert',
+                        name: 'Quick Reaction',
+                        icon: '⚡',
+                        description: 'Press the button that matches the shape as fast as you can',
+                        domain: 'Processing Speed'
                     },
                     {
                         id: 'digitspan',
-                        name: 'Digit Span',
+                        name: 'Number Memory',
                         icon: '🔢',
-                        description: 'Remember sequences of digits',
+                        description: 'Remember and repeat number sequences',
                         domain: 'Working Memory'
                     },
                     {
                         id: 'cpt',
-                        name: 'Sustained Attention (CPT)',
+                        name: 'Focus Challenge',
                         icon: '🎯',
-                        description: 'Detect target letters while avoiding distractors',
+                        description: 'Press SPACE only when you see the letter X',
                         domain: 'Attention'
                     },
                     {
                         id: 'stroop',
-                        name: 'Inhibitory Control (Stroop)',
+                        name: 'Color Game',
                         icon: '🎨',
-                        description: 'Name the color while ignoring the word',
+                        description: 'Name the color, not the word',
                         domain: 'Inhibitory Control'
                     },
                     {
                         id: 'taskswitching',
-                        name: 'Cognitive Flexibility',
+                        name: 'Rule Switch',
                         icon: '🔄',
-                        description: 'Switch between different classification rules',
+                        description: 'Follow the rule and switch when it changes',
                         domain: 'Cognitive Flexibility'
-                    },
-                    {
-                        id: 'choicert',
-                        name: 'Processing Speed',
-                        icon: '⚡',
-                        description: 'Respond quickly and accurately to stimuli',
-                        domain: 'Processing Speed'
                     }
                 ],
 
@@ -1453,7 +1483,9 @@
                     recommendations: document.getElementById('recommendations'),
                     recommendationsList: document.getElementById('recommendationsList'),
                     progressVisualization: document.getElementById('progressVisualization'),
-                    chartBars: document.getElementById('chartBars')
+                    chartBars: document.getElementById('chartBars'),
+                    feedbackForm: document.getElementById('feedbackForm'),
+                    feedbackThanks: document.getElementById('feedbackThanks')
                 };
             },
 
@@ -1526,6 +1558,12 @@
 
                 // Reset button
                 this.elements.resetBtn.addEventListener('click', () => this.reset());
+
+                // Feedback form
+                this.elements.feedbackForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.submitFeedback();
+                });
 
                 // Keyboard shortcuts
                 document.addEventListener('keydown', (e) => {
@@ -1679,9 +1717,6 @@
 
                 // Route to appropriate task
                 switch(taskId) {
-                    case 'nback':
-                        this.runNBack();
-                        break;
                     case 'digitspan':
                         this.runDigitSpan();
                         break;
@@ -3252,16 +3287,38 @@
 
                     const value = document.createElement('div');
                     value.className = 'score-value';
-                    value.textContent = scores[task.id].score.toFixed(1);
+                    const score = scores[task.id].score;
+
+                    // Kid-friendly score display
+                    let displayText, emoji;
+                    if (score >= 90) {
+                        displayText = '⭐ Amazing!';
+                        emoji = '🏆';
+                    } else if (score >= 80) {
+                        displayText = '⭐ Great!';
+                        emoji = '🌟';
+                    } else if (score >= 70) {
+                        displayText = '⭐ Good!';
+                        emoji = '👍';
+                    } else if (score >= 60) {
+                        displayText = '⭐ Nice Try!';
+                        emoji = '💪';
+                    } else {
+                        displayText = '⭐ Keep Practicing!';
+                        emoji = '🎯';
+                    }
+
+                    value.textContent = displayText;
 
                     const label = document.createElement('div');
                     label.className = 'score-label';
-                    label.textContent = task.domain;
+                    label.textContent = task.name;
 
                     const percentile = document.createElement('div');
                     percentile.className = 'score-percentile';
-                    const taskPercentile = this.calculatePercentile(scores[task.id].score, this.state.user.age);
-                    percentile.textContent = `${taskPercentile}th percentile`;
+                    percentile.textContent = `Score: ${score.toFixed(0)}/100`;
+                    percentile.style.fontSize = '0.875rem';
+                    percentile.style.color = 'var(--text-muted)';
 
                     card.appendChild(icon);
                     card.appendChild(value);
@@ -3480,6 +3537,44 @@
                     });
 
                     setTimeout(() => confetti.remove(), duration);
+                }
+            },
+
+            submitFeedback() {
+                const feedback = {
+                    sessionId: this.state.sessionId,
+                    userId: this.state.userId,
+                    timestamp: new Date().toISOString(),
+                    liked: document.getElementById('feedbackLiked').value.trim(),
+                    confusing: document.getElementById('feedbackConfusing').value.trim(),
+                    difficulty: document.querySelector('input[name="difficulty"]:checked')?.value || '3',
+                    suggestions: document.getElementById('feedbackOther').value.trim(),
+                    age: this.state.user.age,
+                    grade: this.state.user.grade
+                };
+
+                // Save feedback to localStorage
+                try {
+                    const feedbackKey = 'neural_flow_feedback_v1';
+                    let allFeedback = [];
+
+                    const existing = localStorage.getItem(feedbackKey);
+                    if (existing) {
+                        allFeedback = JSON.parse(existing);
+                    }
+
+                    allFeedback.push(feedback);
+                    localStorage.setItem(feedbackKey, JSON.stringify(allFeedback));
+
+                    console.log('Feedback saved:', feedback);
+
+                    // Show thank you message
+                    this.elements.feedbackForm.style.display = 'none';
+                    this.elements.feedbackThanks.style.display = 'block';
+
+                } catch (error) {
+                    console.error('Could not save feedback:', error);
+                    this.showFeedback('Thank you for your feedback!', 'success');
                 }
             },
 
