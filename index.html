@@ -1280,8 +1280,14 @@
                            target="_blank"
                            class="btn"
                            style="background: white; color: #667eea; font-size: 1.2rem; padding: 1.2rem 2.5rem; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); display: inline-block; text-decoration: none; margin: 0.5rem;">
-                            📤 Submit to Teacher
+                            📤 Submit to Teacher (Manual Upload)
                         </a>
+
+                        <button id="autoSubmitBtn" class="btn" style="background: #10b981; color: white; font-size: 1.2rem; padding: 1.2rem 2.5rem; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); margin: 0.5rem;">
+                            ⚡ Auto-Submit (One Click!)
+                        </button>
+
+                        <p id="submitStatus" style="margin-top: 1rem; font-weight: 600; font-size: 1.1rem; display: none;"></p>
                     </div>
 
                     <div style="text-align: center; margin-top: 2rem; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
@@ -1508,7 +1514,9 @@
                     progressVisualization: document.getElementById('progressVisualization'),
                     chartBars: document.getElementById('chartBars'),
                     feedbackForm: document.getElementById('feedbackForm'),
-                    feedbackThanks: document.getElementById('feedbackThanks')
+                    feedbackThanks: document.getElementById('feedbackThanks'),
+                    autoSubmitBtn: document.getElementById('autoSubmitBtn'),
+                    submitStatus: document.getElementById('submitStatus')
                 };
             },
 
@@ -1587,6 +1595,9 @@
                     e.preventDefault();
                     this.submitFeedback();
                 });
+
+                // Auto-submit button
+                this.elements.autoSubmitBtn.addEventListener('click', () => this.autoSubmit());
 
                 // Keyboard shortcuts
                 document.addEventListener('keydown', (e) => {
@@ -3210,6 +3221,66 @@
                     });
                 } else {
                     this.elements.progressVisualization.style.display = 'none';
+                }
+            },
+
+            async autoSubmit() {
+                // TODO: Replace with your actual Web App URL from AutoSubmitWebApp.gs
+                const WEB_APP_URL = 'YOUR_WEB_APP_URL_HERE';
+
+                if (WEB_APP_URL === 'YOUR_WEB_APP_URL_HERE') {
+                    this.elements.submitStatus.style.display = 'block';
+                    this.elements.submitStatus.style.color = '#f59e0b';
+                    this.elements.submitStatus.textContent = '⚠️ Auto-submit not configured yet. Please use manual upload or contact your teacher.';
+                    return;
+                }
+
+                // Disable button and show loading
+                this.elements.autoSubmitBtn.disabled = true;
+                this.elements.autoSubmitBtn.textContent = '⏳ Submitting...';
+                this.elements.submitStatus.style.display = 'block';
+                this.elements.submitStatus.style.color = '#667eea';
+                this.elements.submitStatus.textContent = 'Sending your scores to teacher...';
+
+                try {
+                    // Prepare data
+                    const submissionData = {
+                        user: {
+                            name: this.state.user.name,
+                            age: this.state.user.age,
+                            grade: this.state.user.grade
+                        },
+                        sessionId: this.state.sessionId,
+                        userId: this.state.userId,
+                        timestamp: new Date().toISOString(),
+                        taskData: this.state.taskData
+                    };
+
+                    // Send to Google Apps Script
+                    const response = await fetch(WEB_APP_URL, {
+                        method: 'POST',
+                        mode: 'no-cors', // Required for Google Apps Script
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(submissionData)
+                    });
+
+                    // Success (note: no-cors means we can't read response)
+                    this.elements.submitStatus.style.color = '#10b981';
+                    this.elements.submitStatus.textContent = '✅ Scores submitted successfully! You\'re on the leaderboard!';
+                    this.elements.autoSubmitBtn.textContent = '✅ Submitted!';
+
+                    // Log success
+                    console.log('Scores auto-submitted successfully');
+
+                } catch (error) {
+                    // Error
+                    console.error('Auto-submit error:', error);
+                    this.elements.submitStatus.style.color = '#ef4444';
+                    this.elements.submitStatus.textContent = '❌ Submission failed. Please try manual upload instead.';
+                    this.elements.autoSubmitBtn.disabled = false;
+                    this.elements.autoSubmitBtn.textContent = '⚡ Auto-Submit (One Click!)';
                 }
             },
 
