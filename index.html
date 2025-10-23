@@ -362,7 +362,7 @@
         }
 
         .task-card:hover:not(.completed):not(.locked) {
-            transform: translateY(-8px) scale(1.02);
+            transform: scale(1.02);
             box-shadow: var(--shadow-lg);
             border-color: var(--primary-light);
             background: linear-gradient(135deg, var(--surface) 0%, #f8faff 100%);
@@ -1705,7 +1705,7 @@
 
             // Exit current task
             exitTask() {
-                if (confirm('Exit this task? Your progress will not be saved.')) {
+                if (confirm('Exit this task? Your progress on THIS task will not be saved, but completed tasks are safe.')) {
                     this.state.currentTask = null;
                     this.state.currentTrial = 0;
                     this.showScreen('menu');
