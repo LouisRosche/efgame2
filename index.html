@@ -1505,8 +1505,15 @@
             // Bind event listeners
             bindEvents() {
                 // Login form
+                console.log('Binding login form event listener...', this.elements.loginForm);
+                if (!this.elements.loginForm) {
+                    console.error('Login form not found!');
+                    return;
+                }
                 this.elements.loginForm.addEventListener('submit', (e) => {
+                    console.log('Form submitted!', e);
                     e.preventDefault();
+                    console.log('Default prevented, calling handleLogin...');
                     this.handleLogin();
                 });
 
@@ -1530,32 +1537,47 @@
 
             // Handle login
             handleLogin() {
+                console.log('handleLogin called');
                 const nameInput = document.getElementById('name');
                 const ageInput = document.getElementById('age');
                 const gradeInput = document.getElementById('grade');
+
+                console.log('Input elements:', { nameInput, ageInput, gradeInput });
+                console.log('Input values:', {
+                    name: nameInput?.value,
+                    age: ageInput?.value,
+                    grade: gradeInput?.value
+                });
 
                 const name = this.sanitizeInput(nameInput.value.trim());
                 const age = parseInt(ageInput.value);
                 const grade = parseInt(gradeInput.value);
 
+                console.log('Processed values:', { name, age, grade });
+
                 // Validation
                 if (!name || name.length > 50) {
+                    console.log('Name validation failed');
                     this.showFeedback('Please enter a valid first name', 'error');
                     nameInput.focus();
                     return;
                 }
 
                 if (!age || age < 6 || age > 18) {
+                    console.log('Age validation failed:', age);
                     this.showFeedback('Please enter a valid age (6-18)', 'error');
                     ageInput.focus();
                     return;
                 }
 
                 if (!grade) {
+                    console.log('Grade validation failed:', grade);
                     this.showFeedback('Please select your grade', 'error');
                     gradeInput.focus();
                     return;
                 }
+
+                console.log('All validations passed!');
 
                 // Set user data
                 this.state.user = { name, age, grade };
@@ -1565,11 +1587,15 @@
                 this.state.taskData = {};
 
                 console.log('User logged in:', this.state.userId);
+                console.log('Calling showScreen("menu")...');
 
                 // Show menu
                 this.showScreen('menu');
+                console.log('Calling renderTasks()...');
                 this.renderTasks();
+                console.log('Showing success feedback...');
                 this.showFeedback(`Welcome, ${name}! Let's begin your assessment.`, 'success');
+                console.log('handleLogin complete');
             },
 
             // Sanitize user input to prevent XSS
