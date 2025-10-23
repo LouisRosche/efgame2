@@ -30,8 +30,8 @@ See `GOOGLE_SHEETS_SETUP.md` for manual instructions.
 
 ## Step 2: Update Canvas Announcement (2 minutes)
 
-1. Open `canvas-announcement-fixed.html` in this repo
-2. Find this line (around line 79):
+1. Open `canvas-announcement.html` in this repo
+2. Find this line (around line 71):
    ```html
    <a href="YOUR_GOOGLE_FORM_LINK_HERE" target="_blank">
    ```
@@ -47,7 +47,7 @@ See `GOOGLE_SHEETS_SETUP.md` for manual instructions.
 3. Click **"+ Announcement"**
 4. Title: `Brain Games Assessment - Improved & Ready!`
 5. Click the **HTML Editor** icon (`</>` in toolbar)
-6. Open `canvas-announcement-fixed.html`
+6. Open `canvas-announcement.html`
 7. **Copy everything** (Ctrl+A, Ctrl+C)
 8. **Paste** into Canvas HTML editor (Ctrl+V)
 9. Click **"Post"**
@@ -128,8 +128,8 @@ To enable:
 - Increase max file size to 2 MB
 
 ### "Canvas stripped out formatting"
-- Use `canvas-announcement-fixed.html` (has inline styles)
-- NOT the original `canvas-announcement.html`
+- Make sure you're using `canvas-announcement.html` (has inline styles only)
+- Canvas strips out `<style>` tags and JavaScript
 
 ### "Apps Script authorization failed"
 - Make sure you're logged into correct Google account
@@ -142,7 +142,7 @@ To enable:
 
 | File | Purpose |
 |------|---------|
-| `canvas-announcement-fixed.html` | Canvas-compliant announcement (USE THIS ONE) |
+| `canvas-announcement.html` | Canvas-compliant announcement with inline styles |
 | `CreateGoogleForm.gs` | Apps Script to auto-create Google Form |
 | `GOOGLE_SHEETS_SETUP.md` | Manual setup instructions (alternative) |
 | `DEPLOYMENT_GUIDE.md` | This file - quick start guide |
