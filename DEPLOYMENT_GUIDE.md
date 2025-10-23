@@ -6,7 +6,7 @@ Complete setup in **15 minutes**! Follow these steps in order.
 
 ## Step 1: Create Google Form (5 minutes)
 
-### Option A: Auto-Create with Apps Script (Recommended)
+### Option A: Auto-Create with Apps Script (Recommended - 5 min)
 
 1. Go to **https://script.google.com**
 2. Click **"+ New project"**
@@ -19,8 +19,18 @@ Complete setup in **15 minutes**! Follow these steps in order.
    - Click **"Advanced"**
    - Click **"Go to Untitled project (unsafe)"**
    - Click **"Allow"**
-8. Check **View → Logs** (Ctrl+Enter)
-9. **Copy the Form URL** (looks like `https://forms.gle/AbCd123XyZ`)
+8. A popup will show with your form URL - **click it to open the form**
+9. **Add File Upload Question** (Apps Script can't do this automatically):
+   - Click the **+** button
+   - Choose **"File upload"** from dropdown
+   - Title: `Upload Your Score File (CSV)`
+   - Click ⋮ menu → **"Response validation"**
+   - Set: **File upload → Specific file types → Document**
+   - Type in box: `.csv`
+   - Set: **Maximum files → 1**
+   - Set: **Max file size → 10 MB**
+   - Toggle **"Required"** ON
+10. **Copy the Form URL** from the popup (looks like `https://forms.gle/AbCd123XyZ`)
 
 ### Option B: Manual Creation (If Apps Script doesn't work)
 

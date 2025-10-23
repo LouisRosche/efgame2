@@ -57,20 +57,9 @@ function createBrainGamesForm() {
 
     Logger.log('✅ Added: Age question');
 
-    // Question 3: File Upload
-    const fileQuestion = form.addFileUploadItem();
-    fileQuestion.setTitle('Upload Your Score File (CSV)');
-    fileQuestion.setHelpText(
-      'Click "Export Data (CSV)" at the end of the assessment, ' +
-      'then upload that file here.'
-    );
-    fileQuestion.setRequired(true);
-
-    // Configure file upload settings
-    fileQuestion.setMaxFiles(1); // Only 1 file
-    fileQuestion.setMaxFileSize(2); // 2 MB max
-
-    Logger.log('✅ Added: File Upload question');
+    // Question 3: File Upload - NOTE: Cannot be added via script
+    // This must be added manually in the Google Forms UI
+    Logger.log('⚠️  File upload question must be added manually (Apps Script limitation)');
 
     // Question 4: Optional Comments
     const commentsQuestion = form.addParagraphTextItem();
@@ -107,22 +96,56 @@ function createBrainGamesForm() {
     Logger.log('🔗 Form URL: ' + shortUrl);
     Logger.log('📊 Responses Sheet: ' + spreadsheet.getUrl());
     Logger.log('========================================');
-    Logger.log('\nNEXT STEPS:');
+    Logger.log('\n⚠️  IMPORTANT: ADD FILE UPLOAD MANUALLY');
+    Logger.log('Google Forms API cannot add file upload questions.');
+    Logger.log('You must add it yourself:');
+    Logger.log('1. Open the form: ' + shortUrl);
+    Logger.log('2. Click the "+" button to add a question');
+    Logger.log('3. Choose "File upload" from the question type menu');
+    Logger.log('4. Title: "Upload Your Score File (CSV)"');
+    Logger.log('5. Click the ⋮ menu → "Response validation"');
+    Logger.log('6. Set: File upload → Specific file types → Document');
+    Logger.log('7. In the text box type: .csv');
+    Logger.log('8. Set: Maximum number of files → 1');
+    Logger.log('9. Set: Maximum file size → 10 MB');
+    Logger.log('10. Toggle "Required" ON');
+    Logger.log('========================================');
+    Logger.log('\nTHEN:');
     Logger.log('1. Copy the Form URL above');
-    Logger.log('2. Open canvas-announcement-fixed.html');
+    Logger.log('2. Open canvas-announcement.html');
     Logger.log('3. Replace YOUR_GOOGLE_FORM_LINK_HERE with your Form URL');
     Logger.log('4. Post the announcement to Canvas!');
     Logger.log('========================================\n');
 
     // Also show in UI
-    const ui = SpreadsheetApp.getUi();
-    ui.alert(
-      'Form Created Successfully!',
-      'Your form URL is:\n\n' + shortUrl + '\n\n' +
-      'Check the Logs (View → Logs) for full details.\n\n' +
-      'Responses will save to:\n' + spreadsheet.getName(),
-      ui.ButtonSet.OK
-    );
+    const html = '<div style="font-family: Arial; padding: 20px;">' +
+      '<h2>✅ Form Created!</h2>' +
+      '<p><strong>Form URL:</strong><br><a href="' + shortUrl + '" target="_blank">' + shortUrl + '</a></p>' +
+      '<p><strong>Responses Sheet:</strong><br><a href="' + spreadsheet.getUrl() + '" target="_blank">' + spreadsheet.getName() + '</a></p>' +
+      '<hr>' +
+      '<h3>⚠️ IMPORTANT: Add File Upload Question</h3>' +
+      '<p>Google Forms API cannot add file upload questions automatically.</p>' +
+      '<p><strong>Steps to add it:</strong></p>' +
+      '<ol>' +
+      '<li>Open the form (click link above)</li>' +
+      '<li>Click the <strong>+</strong> button to add a question</li>' +
+      '<li>Choose <strong>"File upload"</strong> from the question type dropdown</li>' +
+      '<li>Title: <code>Upload Your Score File (CSV)</code></li>' +
+      '<li>Click ⋮ menu → <strong>"Response validation"</strong></li>' +
+      '<li>Set: <strong>File upload → Specific file types → Document</strong></li>' +
+      '<li>In text box type: <code>.csv</code></li>' +
+      '<li>Set: <strong>Maximum number of files → 1</strong></li>' +
+      '<li>Set: <strong>Maximum file size → 10 MB</strong></li>' +
+      '<li>Toggle <strong>"Required"</strong> ON</li>' +
+      '</ol>' +
+      '<p>Check the <strong>Logs</strong> (View → Logs) for full details!</p>' +
+      '</div>';
+
+    const htmlOutput = HtmlService.createHtmlOutput(html)
+      .setWidth(600)
+      .setHeight(500);
+
+    SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Form Created - Action Required');
 
     return {
       formUrl: shortUrl,
