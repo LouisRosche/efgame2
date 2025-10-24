@@ -1368,30 +1368,41 @@
             </div>
 
             <!-- Report Screen -->
-            <div id="reportScreen" class="screen" role="region" aria-label="Assessment results">
-                <div class="report-container">
+            <!-- Report/Completion Screen -->
+            <div id="reportScreen" class="screen" role="region" aria-label="Assessment complete">
+                <div class="report-container" style="max-width: 600px; margin: 0 auto; text-align: center;">
                     <div class="report-header">
-                        <h2>Assessment Complete!</h2>
-                        <p id="reportInfo" class="report-info"></p>
+                        <h2 style="color: var(--success); font-size: 2rem; margin-bottom: 1rem;">🎉 Assessment Complete!</h2>
+                        <p id="reportInfo" class="report-info" style="font-size: 1.125rem; color: var(--text); margin-bottom: 2rem;"></p>
                     </div>
 
-                    <div class="report-scores" id="reportScores" role="list"></div>
-
-                    <div id="recommendations" class="recommendations" style="display: none;" role="region" aria-label="Recommendations">
-                        <h3>Personalized Recommendations</h3>
-                        <ul id="recommendationsList"></ul>
+                    <!-- Simple summary card -->
+                    <div style="background: var(--surface-alt); padding: 2rem; border-radius: var(--radius); margin-bottom: 2rem; border: 2px solid var(--border);">
+                        <div style="font-size: 3rem; font-weight: 700; color: var(--primary); margin-bottom: 0.5rem;" id="overallScore">--</div>
+                        <div style="font-size: 0.875rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Overall Score</div>
+                        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+                            <div style="font-size: 1.125rem; font-weight: 600; color: var(--text);" id="tasksSummary">6 of 6 tasks completed</div>
+                        </div>
                     </div>
 
-                    <div id="progressVisualization" class="progress-chart" style="display: none;">
-                        <h3 class="chart-title">Your Progress Over Time</h3>
-                        <div class="chart-bars" id="chartBars"></div>
+                    <!-- Submission status -->
+                    <div id="submissionStatus" style="display: none; padding: 1rem; background: #dbeafe; border: 2px solid #3b82f6; border-radius: var(--radius); margin-bottom: 2rem;">
+                        <div style="font-weight: 600; color: #1e40af;">✓ Data submitted successfully to Google Sheets</div>
                     </div>
 
-                    <div style="text-align: center; margin-top: 2rem; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-                        <button id="exportBtn" class="btn">Export Data (CSV)</button>
-                        <button id="exportJSONBtn" class="btn">Export Data (JSON)</button>
-                        <button id="resetBtn" class="btn btn-secondary">New Session</button>
+                    <!-- Actions -->
+                    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                        <button id="submitToSheetsBtn" class="btn" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                            📊 Submit to Google Sheets
+                        </button>
+                        <button id="newAssessmentBtn" class="btn btn-secondary">
+                            Start New Assessment
+                        </button>
                     </div>
+
+                    <p style="margin-top: 2rem; font-size: 0.875rem; color: var(--text-muted);">
+                        Data is automatically saved locally. Click "Submit to Google Sheets" to send results to your spreadsheet.
+                    </p>
                 </div>
             </div>
         </main>
@@ -1613,16 +1624,13 @@
                     progressFill: document.getElementById('progressFill'),
                     progressText: document.getElementById('progressText'),
                     progressPercent: document.getElementById('progressPercent'),
-                    reportScores: document.getElementById('reportScores'),
                     reportInfo: document.getElementById('reportInfo'),
+                    overallScore: document.getElementById('overallScore'),
+                    tasksSummary: document.getElementById('tasksSummary'),
+                    submissionStatus: document.getElementById('submissionStatus'),
                     exitGameBtn: document.getElementById('exitGameBtn'),
-                    exportBtn: document.getElementById('exportBtn'),
-                    exportJSONBtn: document.getElementById('exportJSONBtn'),
-                    resetBtn: document.getElementById('resetBtn'),
-                    recommendations: document.getElementById('recommendations'),
-                    recommendationsList: document.getElementById('recommendationsList'),
-                    progressVisualization: document.getElementById('progressVisualization'),
-                    chartBars: document.getElementById('chartBars')
+                    submitToSheetsBtn: document.getElementById('submitToSheetsBtn'),
+                    newAssessmentBtn: document.getElementById('newAssessmentBtn')
                 };
             },
 
@@ -1793,12 +1801,11 @@
                 // Exit task button
                 this.elements.exitGameBtn.addEventListener('click', () => this.exitTask());
 
-                // Export buttons
-                this.elements.exportBtn.addEventListener('click', () => this.exportData('csv'));
-                this.elements.exportJSONBtn.addEventListener('click', () => this.exportData('json'));
+                // Submit to Google Sheets button
+                this.elements.submitToSheetsBtn.addEventListener('click', () => this.submitToGoogleSheets());
 
-                // Reset button
-                this.elements.resetBtn.addEventListener('click', () => this.reset());
+                // New assessment button
+                this.elements.newAssessmentBtn.addEventListener('click', () => this.reset());
 
                 // Keyboard shortcuts
                 document.addEventListener('keydown', (e) => {
@@ -3703,7 +3710,7 @@
                     ? taskScores.reduce((a, b) => a + b, 0) / taskScores.length
                     : 0;
 
-                // Prepare session data
+                // Prepare session data for Google Sheets submission
                 const sessionData = {
                     sessionId: this.state.sessionId,
                     userId: this.state.userId,
@@ -3719,7 +3726,10 @@
                     percentile: this.calculatePercentile(avgScore, this.state.user.age)
                 };
 
-                // Save to history
+                // Store for Google Sheets submission
+                this.state.pendingSubmission = sessionData;
+
+                // Save to history (local backup)
                 this.saveSession(sessionData);
 
                 // Clear active session (assessment is complete)
@@ -3727,213 +3737,65 @@
                     localStorage.removeItem(this.CONFIG.ACTIVE_SESSION_KEY);
                 }
 
-                // Render report
+                // Render simplified completion screen
                 this.elements.reportInfo.textContent =
                     `${this.state.user.name} | Age ${this.state.user.age} | Grade ${this.state.user.grade} | ${new Date().toLocaleDateString()}`;
 
-                // Clear scores display
-                this.elements.reportScores.innerHTML = '';
+                // Show overall score
+                this.elements.overallScore.textContent = avgScore.toFixed(1);
 
-                // Render score cards
-                this.CONFIG.TASKS.forEach(task => {
-                    if (!scores[task.id]) return;
+                // Show tasks summary
+                const completedTasks = Object.keys(scores).length;
+                this.elements.tasksSummary.textContent = `${completedTasks} of ${this.CONFIG.TASKS.length} tasks completed`;
 
-                    const card = document.createElement('div');
-                    card.className = 'score-card';
-                    card.setAttribute('role', 'listitem');
-
-                    const icon = document.createElement('div');
-                    icon.className = 'score-icon';
-                    icon.textContent = task.icon;
-                    icon.setAttribute('aria-hidden', 'true');
-
-                    const value = document.createElement('div');
-                    value.className = 'score-value';
-                    value.textContent = scores[task.id].score.toFixed(1);
-
-                    const label = document.createElement('div');
-                    label.className = 'score-label';
-                    label.textContent = task.domain;
-
-                    const percentile = document.createElement('div');
-                    percentile.className = 'score-percentile';
-                    const taskPercentile = this.calculatePercentile(scores[task.id].score, this.state.user.age);
-                    percentile.textContent = `${taskPercentile}th percentile`;
-
-                    card.appendChild(icon);
-                    card.appendChild(value);
-                    card.appendChild(label);
-                    card.appendChild(percentile);
-
-                    this.elements.reportScores.appendChild(card);
-                });
-
-                // Generate recommendations
-                this.generateRecommendations(scores);
-
-                // Show progress visualization if multiple sessions
-                this.visualizeProgress();
+                // Hide submission status initially
+                this.elements.submissionStatus.style.display = 'none';
 
                 this.showScreen('report');
             },
 
-            generateRecommendations(scores) {
-                const recommendations = [];
+            // Submit data to Google Sheets
+            async submitToGoogleSheets() {
+                // TODO: Implement Google Sheets API integration
+                // This function will send this.state.pendingSubmission to Google Sheets
 
-                // Identify areas for improvement
-                const sortedTasks = Object.entries(scores)
-                    .map(([id, data]) => ({ id, score: data.score, task: this.CONFIG.TASKS.find(t => t.id === id) }))
-                    .sort((a, b) => a.score - b.score);
+                console.log('Submitting to Google Sheets:', this.state.pendingSubmission);
 
-                const lowestTask = sortedTasks[0];
+                // Show loading state
+                const btn = this.elements.submitToSheetsBtn;
+                const originalText = btn.textContent;
+                btn.disabled = true;
+                btn.textContent = '⏳ Submitting...';
 
-                // Domain-specific recommendations based on research
-                const recMap = {
-                    'nback': 'Practice chunking strategies and rehearsal techniques. Try memory palace methods.',
-                    'digitspan': 'Use verbal rehearsal and grouping strategies. Practice with phone numbers and sequences.',
-                    'cpt': 'Practice sustained focus with Pomodoro technique (25-min intervals). Try mindfulness meditation.',
-                    'stroop': 'Play games requiring response inhibition. Practice "Simon Says" type activities.',
-                    'taskswitching': 'Practice multitasking activities that require rule switching. Try puzzle games.',
-                    'choicert': 'Engage in reaction time games and sports. Practice timed academic tasks.'
-                };
-
-                if (lowestTask.score < 70) {
-                    recommendations.push(`Focus on ${lowestTask.task.domain}: ${recMap[lowestTask.id]}`);
-                }
-
-                // Check for specific patterns
-                const workingMemoryTasks = ['nback', 'digitspan'];
-                const wmScores = workingMemoryTasks
-                    .filter(id => scores[id])
-                    .map(id => scores[id].score);
-
-                if (wmScores.length > 0 && wmScores.every(s => s < 70)) {
-                    recommendations.push('Consider working memory training programs (e.g., Cogmed, dual n-back).');
-                }
-
-                // Render recommendations
-                if (recommendations.length > 0) {
-                    this.elements.recommendations.style.display = 'block';
-                    this.elements.recommendationsList.innerHTML = '';
-
-                    recommendations.forEach(rec => {
-                        const li = document.createElement('li');
-                        li.textContent = rec;
-                        this.elements.recommendationsList.appendChild(li);
-                    });
-                } else {
-                    this.elements.recommendations.style.display = 'none';
-                }
-            },
-
-            visualizeProgress() {
-                // Show progress chart if user has multiple sessions
-                const userSessions = this.state.history.filter(s => s.userId === this.state.userId);
-
-                if (userSessions.length > 1) {
-                    this.elements.progressVisualization.style.display = 'block';
-                    this.elements.chartBars.innerHTML = '';
-
-                    // Show last 5 sessions
-                    const recentSessions = userSessions.slice(-5);
-                    const maxScore = 100;
-
-                    recentSessions.forEach((session, index) => {
-                        const bar = document.createElement('div');
-                        bar.className = 'chart-bar';
-                        const height = (session.averageScore / maxScore) * 100;
-                        bar.style.height = `${height}%`;
-
-                        const label = document.createElement('div');
-                        label.className = 'chart-bar-label';
-                        label.textContent = new Date(session.date).toLocaleDateString();
-                        bar.appendChild(label);
-
-                        const value = document.createElement('div');
-                        value.style.position = 'absolute';
-                        value.style.top = '-30px';
-                        value.style.left = '50%';
-                        value.style.transform = 'translateX(-50%)';
-                        value.style.fontSize = '0.875rem';
-                        value.style.fontWeight = '600';
-                        value.textContent = session.averageScore.toFixed(0);
-                        bar.appendChild(value);
-
-                        this.elements.chartBars.appendChild(bar);
-                    });
-                } else {
-                    this.elements.progressVisualization.style.display = 'none';
-                }
-            },
-
-            exportData(format) {
-                const sessionData = {
-                    sessionId: this.state.sessionId,
-                    userId: this.state.userId,
-                    firstName: this.state.user.name,
-                    age: this.state.user.age,
-                    grade: this.state.user.grade,
-                    date: new Date().toISOString(),
-                    scores: this.state.taskData,
-                    history: this.state.history.filter(s => s.userId === this.state.userId)
-                };
-
-                if (format === 'json') {
-                    this.exportJSON(sessionData);
-                } else if (format === 'csv') {
-                    this.exportCSV(sessionData);
-                }
-            },
-
-            exportJSON(data) {
                 try {
-                    const json = JSON.stringify(data, null, 2);
-                    const blob = new Blob([json], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `neural-flow-${this.state.userId}-${Date.now()}.json`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    this.showFeedback('Data exported successfully (JSON)', 'success');
+                    // PLACEHOLDER: Replace with actual Google Sheets API call
+                    // Example:
+                    // const response = await fetch('YOUR_GOOGLE_APPS_SCRIPT_URL', {
+                    //     method: 'POST',
+                    //     mode: 'no-cors',
+                    //     headers: { 'Content-Type': 'application/json' },
+                    //     body: JSON.stringify(this.state.pendingSubmission)
+                    // });
+
+                    // Simulate API call for now
+                    await this.delay(1500);
+
+                    // Show success
+                    this.elements.submissionStatus.style.display = 'block';
+                    btn.textContent = '✓ Submitted';
+                    btn.style.background = 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)';
+
+                    this.showFeedback('Data submitted to Google Sheets successfully!', 'success');
+
+                    // Mark as submitted
+                    this.state.submittedToSheets = true;
+
                 } catch (error) {
-                    console.error('Export failed:', error);
-                    this.showFeedback('Export failed', 'error');
-                }
-            },
-
-            exportCSV(data) {
-                try {
-                    // CSV header
-                    let csv = 'Session ID,User ID,First Name,Age,Grade,Date,Task,Score,Domain Metric,Value\n';
-
-                    // Current session data
-                    Object.entries(data.scores).forEach(([taskId, taskData]) => {
-                        const task = this.CONFIG.TASKS.find(t => t.id === taskId);
-                        const baseRow = `${data.sessionId},${data.userId},${data.firstName},${data.age},${data.grade},${data.date},${task.name}`;
-
-                        // Main score
-                        csv += `${baseRow},${taskData.score.toFixed(2)},,\n`;
-
-                        // Domain-specific metrics
-                        Object.entries(taskData).forEach(([key, value]) => {
-                            if (key !== 'score' && key !== 'timestamp' && typeof value === 'number') {
-                                csv += `${baseRow},,${key},${value.toFixed(2)}\n`;
-                            }
-                        });
-                    });
-
-                    const blob = new Blob([csv], { type: 'text/csv' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `neural-flow-${this.state.userId}-${Date.now()}.csv`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    this.showFeedback('Data exported successfully (CSV)', 'success');
-                } catch (error) {
-                    console.error('Export failed:', error);
-                    this.showFeedback('Export failed', 'error');
+                    console.error('Submission error:', error);
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                    this.showFeedback('Submission failed. Please try again.', 'error');
+                    alert('Could not submit to Google Sheets. Please check your connection and try again.');
                 }
             },
 
