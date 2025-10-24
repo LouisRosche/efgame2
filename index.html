@@ -1929,10 +1929,13 @@
                         : `Trial ${i + 1} of ${sequence.length}`;
                     this.elements.gameArea.appendChild(counter);
 
+                    const fixContainer = document.createElement('div');
+                    fixContainer.className = 'stimulus-container';
                     const fixation = document.createElement('div');
                     fixation.className = 'fixation';
                     fixation.textContent = '+';
-                    this.elements.gameArea.appendChild(fixation);
+                    fixContainer.appendChild(fixation);
+                    this.elements.gameArea.appendChild(fixContainer);
 
                     await this.delay(this.CONFIG.TIMING.FIXATION);
 
@@ -1957,10 +1960,12 @@
                         this.elements.gameArea.appendChild(historyDiv);
                     }
 
+                    const stimulusContainer = document.createElement('div');
+                    stimulusContainer.className = 'stimulus-container';
                     const stimulus = document.createElement('div');
                     stimulus.className = 'stimulus stimulus-enter';
                     stimulus.textContent = letter;
-                    this.elements.gameArea.appendChild(stimulus);
+                    stimulusContainer.appendChild(stimulus);
 
                     const hint = document.createElement('div');
                     hint.style.textAlign = 'center';
@@ -1968,7 +1973,8 @@
                     hint.style.color = 'var(--text-muted)';
                     hint.style.marginTop = '1rem';
                     hint.textContent = 'Press SPACE if this matches';
-                    this.elements.gameArea.appendChild(hint);
+                    stimulusContainer.appendChild(hint);
+                    this.elements.gameArea.appendChild(stimulusContainer);
 
                     // Collect response
                     const trialStart = performance.now();
@@ -2134,10 +2140,13 @@
                         this.elements.gameArea.appendChild(counter);
 
                         // Stimulus with animation
+                        const stimulusContainer = document.createElement('div');
+                        stimulusContainer.className = 'stimulus-container';
                         const stimulus = document.createElement('div');
                         stimulus.className = 'stimulus stimulus-enter';
                         stimulus.textContent = sequence[i];
-                        this.elements.gameArea.appendChild(stimulus);
+                        stimulusContainer.appendChild(stimulus);
+                        this.elements.gameArea.appendChild(stimulusContainer);
 
                         // Check if this is a repeat (show indicator even though we avoid consecutive)
                         // This is for when the same digit appears non-consecutively
@@ -2461,10 +2470,13 @@
                     counter.textContent = `Trial ${i + 1} of ${trials}`;
                     this.elements.gameArea.appendChild(counter);
 
+                    const fixContainer = document.createElement('div');
+                    fixContainer.className = 'stimulus-container';
                     const fixation = document.createElement('div');
                     fixation.className = 'fixation';
                     fixation.textContent = '+';
-                    this.elements.gameArea.appendChild(fixation);
+                    fixContainer.appendChild(fixation);
+                    this.elements.gameArea.appendChild(fixContainer);
 
                     // Variable ISI (research standard)
                     const isi = this.CONFIG.TIMING.CPT_ISI[Math.floor(Math.random() * this.CONFIG.TIMING.CPT_ISI.length)];
@@ -2663,10 +2675,13 @@
             async runStroopTrial(trial, isPractice) {
                 // Show fixation
                 this.clearGameArea();
+                const fixContainer = document.createElement('div');
+                fixContainer.className = 'stimulus-container';
                 const fixation = document.createElement('div');
                 fixation.className = 'fixation';
                 fixation.textContent = '+';
-                this.elements.gameArea.appendChild(fixation);
+                fixContainer.appendChild(fixation);
+                this.elements.gameArea.appendChild(fixContainer);
 
                 await this.delay(this.CONFIG.TIMING.FIXATION);
 
@@ -2690,12 +2705,15 @@
                 congruencyHint.textContent = trial.congruent ? '(Match)' : '(Conflict!)';
                 this.elements.gameArea.appendChild(congruencyHint);
 
+                const stimulusContainer = document.createElement('div');
+                stimulusContainer.className = 'stimulus-container';
                 const stimulus = document.createElement('div');
                 stimulus.className = 'stimulus stimulus-enter';
                 stimulus.textContent = trial.word;
                 stimulus.style.color = trial.color;
                 stimulus.style.fontWeight = '700';
-                this.elements.gameArea.appendChild(stimulus);
+                stimulusContainer.appendChild(stimulus);
+                this.elements.gameArea.appendChild(stimulusContainer);
 
                 const instructions = document.createElement('div');
                 instructions.style.textAlign = 'center';
@@ -2878,11 +2896,14 @@
                 ruleLabel.textContent = rule === 'color' ? 'COLOR RULE' : 'MAGNITUDE RULE';
                 this.elements.gameArea.appendChild(ruleLabel);
 
+                const stimulusContainer = document.createElement('div');
+                stimulusContainer.className = 'stimulus-container';
                 const stimulus = document.createElement('div');
                 stimulus.className = 'stimulus';
                 stimulus.textContent = number;
                 stimulus.style.color = color;
-                this.elements.gameArea.appendChild(stimulus);
+                stimulusContainer.appendChild(stimulus);
+                this.elements.gameArea.appendChild(stimulusContainer);
 
                 const instructions = document.createElement('div');
                 instructions.style.textAlign = 'center';
@@ -2952,10 +2973,13 @@
 
                     // Variable pre-stimulus delay (prevent anticipation)
                     this.clearGameArea();
+                    const fixContainer = document.createElement('div');
+                    fixContainer.className = 'stimulus-container';
                     const fixation = document.createElement('div');
                     fixation.className = 'fixation';
                     fixation.textContent = '+';
-                    this.elements.gameArea.appendChild(fixation);
+                    fixContainer.appendChild(fixation);
+                    this.elements.gameArea.appendChild(fixContainer);
 
                     const delay = 500 + Math.random() * 1000;
                     await this.delay(delay);
@@ -2964,11 +2988,14 @@
                     this.clearGameArea();
                     const stimulus = stimuli[Math.floor(Math.random() * stimuli.length)];
 
+                    const container = document.createElement('div');
+                    container.className = 'stimulus-container';
                     const arrow = document.createElement('div');
                     arrow.className = 'stimulus';
                     arrow.textContent = stimulus.symbol;
                     arrow.setAttribute('aria-label', stimulus.name);
-                    this.elements.gameArea.appendChild(arrow);
+                    container.appendChild(arrow);
+                    this.elements.gameArea.appendChild(container);
 
                     // Collect response
                     const trialStart = performance.now();
