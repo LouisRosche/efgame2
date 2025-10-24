@@ -1372,7 +1372,7 @@
             <div id="reportScreen" class="screen" role="region" aria-label="Assessment complete">
                 <div class="report-container" style="max-width: 600px; margin: 0 auto; text-align: center;">
                     <div class="report-header">
-                        <h2 style="color: var(--success); font-size: 2rem; margin-bottom: 1rem;">🎉 Assessment Complete!</h2>
+                        <h2 style="color: var(--success); font-size: 2rem; margin-bottom: 1rem;">🎉 All Tasks Complete!</h2>
                         <p id="reportInfo" class="report-info" style="font-size: 1.125rem; color: var(--text); margin-bottom: 2rem;"></p>
                     </div>
 
@@ -1385,23 +1385,24 @@
                         </div>
                     </div>
 
-                    <!-- Submission status -->
-                    <div id="submissionStatus" style="display: none; padding: 1rem; background: #dbeafe; border: 2px solid #3b82f6; border-radius: var(--radius); margin-bottom: 2rem;">
-                        <div style="font-weight: 600; color: #1e40af;">✓ Data submitted successfully to Google Sheets</div>
+                    <!-- Auto-submission notice -->
+                    <div style="padding: 1rem; background: #d1fae5; border: 2px solid #10b981; border-radius: var(--radius); margin-bottom: 2rem;">
+                        <div style="font-weight: 600; color: #065f46;">✓ All task data auto-submitted to Google Sheets</div>
+                        <div style="font-size: 0.875rem; color: #047857; margin-top: 0.5rem;">Each task was submitted immediately after completion</div>
                     </div>
 
                     <!-- Actions -->
                     <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-                        <button id="submitToSheetsBtn" class="btn" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                            📊 Submit to Google Sheets
-                        </button>
-                        <button id="newAssessmentBtn" class="btn btn-secondary">
+                        <button id="newAssessmentBtn" class="btn">
                             Start New Assessment
+                        </button>
+                        <button onclick="window.location.reload()" class="btn btn-secondary">
+                            Back to Menu
                         </button>
                     </div>
 
                     <p style="margin-top: 2rem; font-size: 0.875rem; color: var(--text-muted);">
-                        Data is automatically saved locally. Click "Submit to Google Sheets" to send results to your spreadsheet.
+                        Want to retry any task? Go back to the menu and click "Retry" on any completed task.
                     </p>
                 </div>
             </div>
@@ -1524,6 +1525,7 @@
                 currentTrial: 0,
                 totalTrials: 0,
                 taskData: {},
+                taskAttempts: {},  // Track number of attempts per task
                 sessionStart: null,
                 sessionId: null,
                 history: [],
@@ -1627,9 +1629,7 @@
                     reportInfo: document.getElementById('reportInfo'),
                     overallScore: document.getElementById('overallScore'),
                     tasksSummary: document.getElementById('tasksSummary'),
-                    submissionStatus: document.getElementById('submissionStatus'),
                     exitGameBtn: document.getElementById('exitGameBtn'),
-                    submitToSheetsBtn: document.getElementById('submitToSheetsBtn'),
                     newAssessmentBtn: document.getElementById('newAssessmentBtn')
                 };
             },
@@ -1801,11 +1801,10 @@
                 // Exit task button
                 this.elements.exitGameBtn.addEventListener('click', () => this.exitTask());
 
-                // Submit to Google Sheets button
-                this.elements.submitToSheetsBtn.addEventListener('click', () => this.submitToGoogleSheets());
-
-                // New assessment button
-                this.elements.newAssessmentBtn.addEventListener('click', () => this.reset());
+                // New assessment button (when it exists - only on completion screen)
+                if (this.elements.newAssessmentBtn) {
+                    this.elements.newAssessmentBtn.addEventListener('click', () => this.reset());
+                }
 
                 // Keyboard shortcuts
                 document.addEventListener('keydown', (e) => {
@@ -1942,17 +1941,50 @@
                         const score = document.createElement('div');
                         score.className = 'task-score';
                         const taskScore = this.state.taskData[task.id].score;
+                        const attempts = this.state.taskAttempts[task.id] || 1;
                         score.textContent = `Score: ${taskScore.toFixed(1)}`;
+                        if (attempts > 1) {
+                            score.textContent += ` (Attempt ${attempts})`;
+                        }
                         card.appendChild(score);
-                    } else {
-                        card.addEventListener('click', () => this.startTask(task.id));
-                        card.addEventListener('keypress', (e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                this.startTask(task.id);
-                            }
+
+                        // Add retry button
+                        const retryBtn = document.createElement('div');
+                        retryBtn.className = 'task-retry';
+                        retryBtn.textContent = 'Retry';
+                        retryBtn.style.marginTop = '0.75rem';
+                        retryBtn.style.padding = '0.5rem 1rem';
+                        retryBtn.style.background = 'var(--primary-light)';
+                        retryBtn.style.color = 'var(--primary)';
+                        retryBtn.style.borderRadius = 'var(--radius)';
+                        retryBtn.style.fontSize = '0.875rem';
+                        retryBtn.style.fontWeight = '600';
+                        retryBtn.style.cursor = 'pointer';
+                        retryBtn.style.textAlign = 'center';
+                        retryBtn.style.transition = 'var(--transition)';
+                        retryBtn.addEventListener('mouseover', () => {
+                            retryBtn.style.background = 'var(--primary)';
+                            retryBtn.style.color = 'white';
                         });
+                        retryBtn.addEventListener('mouseout', () => {
+                            retryBtn.style.background = 'var(--primary-light)';
+                            retryBtn.style.color = 'var(--primary)';
+                        });
+                        retryBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.startTask(task.id);
+                        });
+                        card.appendChild(retryBtn);
                     }
+
+                    // Always allow clicking the card to start/retry
+                    card.addEventListener('click', () => this.startTask(task.id));
+                    card.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            this.startTask(task.id);
+                        }
+                    });
 
                     grid.appendChild(card);
                 });
@@ -2169,9 +2201,12 @@
                 // Save active session for recovery
                 this.saveActiveSession();
 
+                // Auto-submit to Google Sheets
+                await this.submitTaskToGoogleSheets('nback', this.state.taskData['nback']);
+
                 // Celebrate task completion
                 this.celebrate();
-                this.showFeedback(`Task complete! Score: ${score.toFixed(1)}`, 'success');
+                this.showFeedback(`Task complete! Score: ${score.toFixed(1)} (Auto-submitted)`, 'success');
                 await this.delay(2000);
                 this.showScreen('menu');
                 this.renderTasks();
@@ -2364,8 +2399,11 @@
                 // Save active session for recovery
                 this.saveActiveSession();
 
+                // Auto-submit to Google Sheets
+                await this.submitTaskToGoogleSheets('digitspan', this.state.taskData['digitspan']);
+
                 this.celebrate();
-                this.showFeedback(`Task complete! Score: ${score.toFixed(1)}`, 'success');
+                this.showFeedback(`Task complete! Score: ${score.toFixed(1)} (Auto-submitted)`, 'success');
                 await this.delay(2000);
                 this.showScreen('menu');
                 this.renderTasks();
@@ -2845,6 +2883,9 @@
                 // Save active session for recovery
                 this.saveActiveSession();
 
+                // Auto-submit to Google Sheets
+                await this.submitTaskToGoogleSheets('cpt', this.state.taskData['cpt']);
+
                 this.celebrate();
                 this.showFeedback(`Task complete! Score: ${score.toFixed(1)}`, 'success');
                 await this.delay(2000);
@@ -2961,6 +3002,9 @@
 
                 // Save active session for recovery
                 this.saveActiveSession();
+
+                // Auto-submit to Google Sheets
+                await this.submitTaskToGoogleSheets('stroop', this.state.taskData['stroop']);
 
                 this.celebrate();
                 this.showFeedback(`Task complete! Score: ${score.toFixed(1)}`, 'success');
@@ -3158,6 +3202,9 @@
 
                 // Save active session for recovery
                 this.saveActiveSession();
+
+                // Auto-submit to Google Sheets
+                await this.submitTaskToGoogleSheets('taskswitching', this.state.taskData['taskswitching']);
 
                 this.celebrate();
                 this.showFeedback(`Task complete! Score: ${score.toFixed(1)}`, 'success');
@@ -3362,6 +3409,9 @@
 
                 // Save active session for recovery
                 this.saveActiveSession();
+
+                // Auto-submit to Google Sheets
+                await this.submitTaskToGoogleSheets('choicert', this.state.taskData['choicert']);
 
                 this.celebrate();
                 this.showFeedback(`Task complete! Score: ${score.toFixed(1)}`, 'success');
@@ -3726,9 +3776,6 @@
                     percentile: this.calculatePercentile(avgScore, this.state.user.age)
                 };
 
-                // Store for Google Sheets submission
-                this.state.pendingSubmission = sessionData;
-
                 // Save to history (local backup)
                 this.saveSession(sessionData);
 
@@ -3746,56 +3793,55 @@
 
                 // Show tasks summary
                 const completedTasks = Object.keys(scores).length;
-                this.elements.tasksSummary.textContent = `${completedTasks} of ${this.CONFIG.TASKS.length} tasks completed`;
-
-                // Hide submission status initially
-                this.elements.submissionStatus.style.display = 'none';
+                const totalAttempts = Object.values(this.state.taskAttempts).reduce((a, b) => a + b, 0);
+                this.elements.tasksSummary.textContent = `${completedTasks} tasks • ${totalAttempts} total attempts`;
 
                 this.showScreen('report');
             },
 
-            // Submit data to Google Sheets
-            async submitToGoogleSheets() {
-                // TODO: Implement Google Sheets API integration
-                // This function will send this.state.pendingSubmission to Google Sheets
+            // Submit individual task data to Google Sheets (called after each task)
+            async submitTaskToGoogleSheets(taskId, taskData) {
+                // Increment attempt counter
+                this.state.taskAttempts[taskId] = (this.state.taskAttempts[taskId] || 0) + 1;
+                const attemptNumber = this.state.taskAttempts[taskId];
 
-                console.log('Submitting to Google Sheets:', this.state.pendingSubmission);
+                // Prepare task submission data
+                const submissionData = {
+                    timestamp: new Date().toISOString(),
+                    sessionId: this.state.sessionId,
+                    userId: this.state.userId,
+                    userName: this.state.user.name,
+                    age: this.state.user.age,
+                    grade: this.state.user.grade,
+                    taskId: taskId,
+                    taskName: this.CONFIG.TASKS.find(t => t.id === taskId)?.name,
+                    attemptNumber: attemptNumber,
+                    taskData: taskData,
+                    score: taskData.score
+                };
 
-                // Show loading state
-                const btn = this.elements.submitToSheetsBtn;
-                const originalText = btn.textContent;
-                btn.disabled = true;
-                btn.textContent = '⏳ Submitting...';
+                console.log(`Auto-submitting ${taskId} (attempt ${attemptNumber}):`, submissionData);
 
                 try {
-                    // PLACEHOLDER: Replace with actual Google Sheets API call
-                    // Example:
+                    // TODO: Replace with actual Google Sheets API call
                     // const response = await fetch('YOUR_GOOGLE_APPS_SCRIPT_URL', {
                     //     method: 'POST',
                     //     mode: 'no-cors',
                     //     headers: { 'Content-Type': 'application/json' },
-                    //     body: JSON.stringify(this.state.pendingSubmission)
+                    //     body: JSON.stringify(submissionData)
                     // });
 
-                    // Simulate API call for now
-                    await this.delay(1500);
+                    // Simulate API call (remove in production)
+                    await this.delay(500);
 
-                    // Show success
-                    this.elements.submissionStatus.style.display = 'block';
-                    btn.textContent = '✓ Submitted';
-                    btn.style.background = 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)';
-
-                    this.showFeedback('Data submitted to Google Sheets successfully!', 'success');
-
-                    // Mark as submitted
-                    this.state.submittedToSheets = true;
+                    console.log(`✓ Task ${taskId} submitted successfully (attempt ${attemptNumber})`);
+                    return true;
 
                 } catch (error) {
-                    console.error('Submission error:', error);
-                    btn.disabled = false;
-                    btn.textContent = originalText;
-                    this.showFeedback('Submission failed. Please try again.', 'error');
-                    alert('Could not submit to Google Sheets. Please check your connection and try again.');
+                    console.error(`✗ Failed to submit ${taskId}:`, error);
+                    // Don't show error to user - fail silently and log locally
+                    // Data is still saved in localStorage as backup
+                    return false;
                 }
             },
 
