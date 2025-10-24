@@ -166,7 +166,7 @@
         /* Main content */
         .content {
             padding: 2rem;
-            min-height: 500px;
+            min-height: 300px;
         }
 
         /* Screens */
@@ -455,7 +455,7 @@
             padding: 2rem;
             background: var(--surface-alt);
             border-radius: var(--radius);
-            min-height: 500px;
+            min-height: 300px;
         }
 
         .game-header {
@@ -618,7 +618,8 @@
             position: relative;
             width: 100%;
             max-width: 600px;
-            height: 400px;
+            min-height: 300px;
+            aspect-ratio: 3 / 2;
             margin: 2rem auto;
             display: flex;
             align-items: center;
@@ -768,6 +769,7 @@
             position: fixed;
             top: 20px;
             right: 20px;
+            left: 20px;
             padding: 1rem 1.5rem;
             border-radius: var(--radius);
             color: white;
@@ -775,6 +777,7 @@
             animation: slideIn 0.3s ease;
             z-index: 1000;
             max-width: 350px;
+            margin-left: auto;
             box-shadow: var(--shadow-lg);
         }
 
@@ -976,7 +979,8 @@
             display: flex;
             align-items: flex-end;
             justify-content: space-around;
-            height: 200px;
+            min-height: 150px;
+            height: clamp(150px, 30vh, 200px);
             gap: 0.5rem;
         }
 
@@ -1049,7 +1053,15 @@
         }
 
         @media (max-width: 480px) {
+            body {
+                padding: 0.5rem;
+            }
+
             .content {
+                padding: 1rem;
+            }
+
+            .game-area {
                 padding: 1rem;
             }
 
@@ -1059,6 +1071,60 @@
 
             .stimulus {
                 font-size: 2.5rem;
+            }
+
+            .task-icon {
+                font-size: 2.5rem;
+            }
+
+            .cpt-stimulus {
+                font-size: 3.5rem;
+            }
+
+            .result-comparison {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .input-slot {
+                width: 45px;
+                height: 45px;
+                font-size: 1.25rem;
+            }
+
+            .result-digit {
+                width: 40px;
+                height: 40px;
+                font-size: 1.25rem;
+            }
+
+            .number-pad {
+                gap: 0.5rem;
+                max-width: 280px;
+            }
+
+            .number-btn {
+                padding: 1rem;
+                font-size: 1.25rem;
+            }
+
+            .cpt-area {
+                min-height: 250px;
+                max-height: 60vh;
+                margin: 1rem auto;
+            }
+
+            .chart-bars {
+                height: clamp(120px, 25vh, 150px);
+                min-height: 120px;
+            }
+
+            .stimulus-container {
+                min-height: 200px;
             }
         }
 
