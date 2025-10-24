@@ -539,6 +539,98 @@
             margin-top: 2rem;
         }
 
+        /* Touch-friendly response button (for mobile) */
+        .touch-response-btn {
+            padding: 1.25rem 2rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: inherit;
+            min-height: 60px;
+            min-width: 120px;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .touch-response-btn:active {
+            transform: scale(0.95);
+            box-shadow: var(--shadow-colored);
+        }
+
+        .touch-response-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Arrow buttons for Choice RT */
+        .arrow-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 0.75rem;
+            max-width: 280px;
+            margin: 2rem auto;
+        }
+
+        .arrow-btn {
+            padding: 1.5rem;
+            font-size: 2rem;
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+            min-height: 70px;
+            min-width: 70px;
+        }
+
+        .arrow-btn:active:not(:disabled) {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            transform: scale(0.95);
+        }
+
+        .arrow-btn:disabled {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .arrow-btn-up { grid-column: 2; grid-row: 1; }
+        .arrow-btn-left { grid-column: 1; grid-row: 2; }
+        .arrow-btn-right { grid-column: 3; grid-row: 2; }
+        .arrow-btn-down { grid-column: 2; grid-row: 3; }
+
+        /* Color buttons for Stroop */
+        .color-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            max-width: 350px;
+            margin: 2rem auto;
+        }
+
+        .color-btn {
+            padding: 1.5rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+            border: 3px solid;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+            min-height: 70px;
+        }
+
+        .color-btn:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
         /* Number pad for digit span */
         .number-pad {
             display: grid;
@@ -1186,6 +1278,10 @@
             <div id="loginScreen" class="screen active" role="region" aria-label="Welcome screen">
                 <div class="form-container">
                     <h2 class="form-title">Welcome!</h2>
+                    <p style="text-align: center; color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem;">
+                        Complete 6 cognitive assessments to measure executive function.<br>
+                        <strong>Total time: ~25 minutes</strong>
+                    </p>
                     <form id="loginForm" aria-label="User information form">
                         <div class="form-group">
                             <label class="form-label" for="name">First Name</label>
@@ -1244,6 +1340,7 @@
 
             <!-- Menu Screen -->
             <div id="menuScreen" class="screen" role="region" aria-label="Assessment tasks">
+                <div id="menuProgress" style="text-align: center; margin-bottom: 1rem; padding: 1rem; background: var(--surface-alt); border-radius: var(--radius); border: 2px solid var(--border);"></div>
                 <h2 style="text-align: center; margin-bottom: 2rem; color: var(--text);">Select an Assessment Task</h2>
                 <div class="tasks-container" id="tasksGrid" role="list"></div>
             </div>
@@ -1365,6 +1462,7 @@
 
                 // Storage and security
                 STORAGE_KEY: 'neural_flow_data_v2',
+                ACTIVE_SESSION_KEY: 'neural_flow_active_session_v2',
                 ENCRYPTION_KEY: 'neural_flow_2024_secure', // In production, use proper key management
 
                 // Timing standards (milliseconds)
@@ -1477,6 +1575,7 @@
                 this.testStorage();
                 this.cacheElements();
                 this.loadHistory();
+                this.loadActiveSession();
                 this.bindEvents();
                 this.showScreen('login');
                 console.log('Initialization complete');
@@ -1541,6 +1640,75 @@
                 }
             },
 
+            // Load active session (for recovery after page refresh)
+            loadActiveSession() {
+                if (!this.state.storageAvailable) return;
+
+                try {
+                    const encrypted = localStorage.getItem(this.CONFIG.ACTIVE_SESSION_KEY);
+                    if (encrypted) {
+                        const decrypted = this.crypto.decrypt(encrypted, this.CONFIG.ENCRYPTION_KEY);
+                        const activeSession = JSON.parse(decrypted);
+
+                        // Check if session is recent (within last 24 hours)
+                        const sessionAge = Date.now() - activeSession.timestamp;
+                        if (sessionAge < 24 * 60 * 60 * 1000) {
+                            // Restore session state
+                            this.state.user = activeSession.user;
+                            this.state.userId = activeSession.userId;
+                            this.state.sessionId = activeSession.sessionId;
+                            this.state.sessionStart = activeSession.sessionStart;
+                            this.state.taskData = activeSession.taskData;
+
+                            console.log('Active session restored:', this.state.userId);
+
+                            // Show recovery dialog
+                            setTimeout(() => {
+                                if (confirm('Welcome back! Would you like to continue your previous assessment?\n\n' +
+                                           `${activeSession.user.name}, ${Object.keys(activeSession.taskData).length} of ${this.CONFIG.TASKS.length} tasks completed.`)) {
+                                    this.showScreen('menu');
+                                    this.renderTasks();
+                                    this.showFeedback('Session restored! Continue where you left off.', 'success');
+                                } else {
+                                    // Clear active session
+                                    localStorage.removeItem(this.CONFIG.ACTIVE_SESSION_KEY);
+                                    this.state.user = null;
+                                    this.state.taskData = {};
+                                }
+                            }, 500);
+                        } else {
+                            // Session too old, clear it
+                            localStorage.removeItem(this.CONFIG.ACTIVE_SESSION_KEY);
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Could not load active session:', error);
+                    localStorage.removeItem(this.CONFIG.ACTIVE_SESSION_KEY);
+                }
+            },
+
+            // Save active session for recovery
+            saveActiveSession() {
+                if (!this.state.storageAvailable || !this.state.user) return;
+
+                try {
+                    const activeSession = {
+                        user: this.state.user,
+                        userId: this.state.userId,
+                        sessionId: this.state.sessionId,
+                        sessionStart: this.state.sessionStart,
+                        taskData: this.state.taskData,
+                        timestamp: Date.now()
+                    };
+
+                    const json = JSON.stringify(activeSession);
+                    const encrypted = this.crypto.encrypt(json, this.CONFIG.ENCRYPTION_KEY);
+                    localStorage.setItem(this.CONFIG.ACTIVE_SESSION_KEY, encrypted);
+                } catch (error) {
+                    console.error('Could not save active session:', error);
+                }
+            },
+
             // Save session data
             saveSession(sessionData) {
                 if (!this.state.storageAvailable) return;
@@ -1590,6 +1758,16 @@
                 document.addEventListener('keydown', (e) => {
                     if (e.key === 'Escape' && this.state.currentTask) {
                         this.exitTask();
+                    }
+                });
+
+                // Warn before closing/refreshing if assessment in progress
+                window.addEventListener('beforeunload', (e) => {
+                    if (this.state.user && Object.keys(this.state.taskData).length > 0 &&
+                        Object.keys(this.state.taskData).length < this.CONFIG.TASKS.length) {
+                        e.preventDefault();
+                        e.returnValue = 'You have an assessment in progress. Your data will be saved, but you may want to complete all tasks.';
+                        return e.returnValue;
                     }
                 });
             },
@@ -1649,6 +1827,14 @@
             renderTasks() {
                 const grid = this.elements.tasksGrid;
                 grid.innerHTML = '';
+
+                // Update progress indicator
+                const completed = Object.keys(this.state.taskData).length;
+                const total = this.CONFIG.TASKS.length;
+                const menuProgress = document.getElementById('menuProgress');
+                if (menuProgress) {
+                    menuProgress.innerHTML = `<div style="font-size: 1.125rem; font-weight: 600; color: var(--primary);">Assessment Progress: ${completed} of ${total} tasks completed</div><div style="font-size: 0.875rem; color: var(--text-muted); margin-top: 0.25rem;">Estimated time remaining: ~${(total - completed) * 4} minutes</div>`;
+                }
 
                 this.CONFIG.TASKS.forEach((task, index) => {
                     const card = document.createElement('div');
@@ -1745,7 +1931,7 @@
 
             // Exit current task
             exitTask() {
-                if (confirm('Exit this task? Your progress will not be saved.')) {
+                if (confirm('Exit this task? Your progress on THIS task will be lost, but completed tasks are saved.')) {
                     this.state.currentTask = null;
                     this.state.currentTrial = 0;
                     this.showScreen('menu');
@@ -1900,6 +2086,9 @@
 
                 console.log('N-Back complete:', this.state.taskData['nback']);
 
+                // Save active session for recovery
+                this.saveActiveSession();
+
                 // Celebrate task completion
                 this.celebrate();
                 this.showFeedback(`Task complete! Score: ${score.toFixed(1)}`, 'success');
@@ -1975,6 +2164,14 @@
                     hint.textContent = 'Press SPACE if this matches';
                     stimulusContainer.appendChild(hint);
                     this.elements.gameArea.appendChild(stimulusContainer);
+
+                    // Add touch-friendly Match button for mobile
+                    const matchButtonContainer = document.createElement('div');
+                    matchButtonContainer.className = 'response-buttons';
+                    const matchBtn = this.createTouchButton('MATCH (SPACE)', ' ');
+                    matchBtn.style.backgroundColor = 'var(--success)';
+                    matchButtonContainer.appendChild(matchBtn);
+                    this.elements.gameArea.appendChild(matchButtonContainer);
 
                     // Collect response
                     const trialStart = performance.now();
@@ -2083,6 +2280,9 @@
                 };
 
                 console.log('Digit Span complete:', this.state.taskData['digitspan']);
+
+                // Save active session for recovery
+                this.saveActiveSession();
 
                 this.celebrate();
                 this.showFeedback(`Task complete! Score: ${score.toFixed(1)}`, 'success');
@@ -2509,6 +2709,14 @@
                     hint.textContent = `Press SPACE for "${targetLetter}"`;
                     this.elements.gameArea.appendChild(hint);
 
+                    // Add touch-friendly Target button for mobile
+                    const targetButtonContainer = document.createElement('div');
+                    targetButtonContainer.className = 'response-buttons';
+                    const targetBtn = this.createTouchButton(`TARGET (${targetLetter})`, ' ');
+                    targetBtn.style.backgroundColor = 'var(--primary)';
+                    targetButtonContainer.appendChild(targetBtn);
+                    this.elements.gameArea.appendChild(targetButtonContainer);
+
                     // Collect response
                     const trialStart = performance.now();
                     const response = await this.waitForResponse([' '], this.CONFIG.TIMING.RESPONSE_WINDOW);
@@ -2550,6 +2758,9 @@
                 };
 
                 console.log('CPT complete:', this.state.taskData['cpt']);
+
+                // Save active session for recovery
+                this.saveActiveSession();
 
                 this.celebrate();
                 this.showFeedback(`Task complete! Score: ${score.toFixed(1)}`, 'success');
@@ -2665,6 +2876,9 @@
 
                 console.log('Stroop complete:', this.state.taskData['stroop']);
 
+                // Save active session for recovery
+                this.saveActiveSession();
+
                 this.celebrate();
                 this.showFeedback(`Task complete! Score: ${score.toFixed(1)}`, 'success');
                 await this.delay(2000);
@@ -2723,6 +2937,10 @@
                 instructions.style.fontWeight = '600';
                 instructions.innerHTML = '<strong>Name the COLOR:</strong><br>R = Red  |  B = Blue  |  G = Green  |  Y = Yellow';
                 this.elements.gameArea.appendChild(instructions);
+
+                // Add touch-friendly color buttons for mobile
+                const colorButtons = this.createColorButtons();
+                this.elements.gameArea.appendChild(colorButtons);
 
                 // Collect response
                 const trialStart = performance.now();
@@ -2844,6 +3062,9 @@
 
                 console.log('Task Switching complete:', this.state.taskData['taskswitching']);
 
+                // Save active session for recovery
+                this.saveActiveSession();
+
                 this.celebrate();
                 this.showFeedback(`Task complete! Score: ${score.toFixed(1)}`, 'success');
                 await this.delay(2000);
@@ -2913,6 +3134,10 @@
                     ? 'R = Red  |  B = Blue'
                     : 'H = High (≥5)  |  L = Low (<5)';
                 this.elements.gameArea.appendChild(instructions);
+
+                // Add touch-friendly rule buttons for mobile
+                const ruleButtons = this.createRuleButtons(rule);
+                this.elements.gameArea.appendChild(ruleButtons);
 
                 // Collect response
                 const trialStart = performance.now();
@@ -2997,6 +3222,10 @@
                     container.appendChild(arrow);
                     this.elements.gameArea.appendChild(container);
 
+                    // Add touch-friendly arrow buttons for mobile
+                    const arrowButtons = this.createArrowButtons();
+                    this.elements.gameArea.appendChild(arrowButtons);
+
                     // Collect response
                     const trialStart = performance.now();
                     const response = await this.waitForResponse(
@@ -3035,6 +3264,9 @@
                 };
 
                 console.log('Choice RT complete:', this.state.taskData['choicert']);
+
+                // Save active session for recovery
+                this.saveActiveSession();
 
                 this.celebrate();
                 this.showFeedback(`Task complete! Score: ${score.toFixed(1)}`, 'success');
@@ -3265,6 +3497,109 @@
                 });
             },
 
+            // Helper: Dispatch keyboard event (for touch buttons)
+            dispatchKeyEvent(key) {
+                const event = new KeyboardEvent('keydown', {
+                    key: key,
+                    code: key,
+                    bubbles: true,
+                    cancelable: true
+                });
+                document.dispatchEvent(event);
+            },
+
+            // Helper: Create touch-friendly single button
+            createTouchButton(text, key, className = 'touch-response-btn') {
+                const btn = document.createElement('button');
+                btn.className = className;
+                btn.textContent = text;
+                btn.setAttribute('aria-label', text);
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.dispatchKeyEvent(key);
+                });
+                return btn;
+            },
+
+            // Helper: Create arrow buttons for Choice RT
+            createArrowButtons() {
+                const container = document.createElement('div');
+                container.className = 'arrow-buttons';
+
+                const arrows = [
+                    { symbol: '↑', key: 'ArrowUp', className: 'arrow-btn arrow-btn-up', label: 'Up arrow' },
+                    { symbol: '←', key: 'ArrowLeft', className: 'arrow-btn arrow-btn-left', label: 'Left arrow' },
+                    { symbol: '→', key: 'ArrowRight', className: 'arrow-btn arrow-btn-right', label: 'Right arrow' },
+                    { symbol: '↓', key: 'ArrowDown', className: 'arrow-btn arrow-btn-down', label: 'Down arrow' }
+                ];
+
+                arrows.forEach(arrow => {
+                    const btn = document.createElement('button');
+                    btn.className = arrow.className;
+                    btn.textContent = arrow.symbol;
+                    btn.setAttribute('aria-label', arrow.label);
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.dispatchKeyEvent(arrow.key);
+                    });
+                    container.appendChild(btn);
+                });
+
+                return container;
+            },
+
+            // Helper: Create color buttons for Stroop
+            createColorButtons() {
+                const container = document.createElement('div');
+                container.className = 'color-buttons';
+
+                const colors = [
+                    { name: 'RED', key: 'r', color: '#ef4444' },
+                    { name: 'BLUE', key: 'b', color: '#3b82f6' },
+                    { name: 'GREEN', key: 'g', color: '#10b981' },
+                    { name: 'YELLOW', key: 'y', color: '#eab308' }
+                ];
+
+                colors.forEach(color => {
+                    const btn = document.createElement('button');
+                    btn.className = 'color-btn';
+                    btn.textContent = color.name;
+                    btn.style.backgroundColor = color.color;
+                    btn.style.color = 'white';
+                    btn.style.borderColor = color.color;
+                    btn.setAttribute('aria-label', color.name);
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.dispatchKeyEvent(color.key);
+                    });
+                    container.appendChild(btn);
+                });
+
+                return container;
+            },
+
+            // Helper: Create rule buttons for Task Switching
+            createRuleButtons(rule) {
+                const container = document.createElement('div');
+                container.className = 'response-buttons';
+
+                if (rule === 'color') {
+                    const redBtn = this.createTouchButton('RED (R)', 'r');
+                    redBtn.style.backgroundColor = '#ef4444';
+                    const blueBtn = this.createTouchButton('BLUE (B)', 'b');
+                    blueBtn.style.backgroundColor = '#3b82f6';
+                    container.appendChild(redBtn);
+                    container.appendChild(blueBtn);
+                } else {
+                    const highBtn = this.createTouchButton('HIGH ≥5 (H)', 'h');
+                    const lowBtn = this.createTouchButton('LOW <5 (L)', 'l');
+                    container.appendChild(highBtn);
+                    container.appendChild(lowBtn);
+                }
+
+                return container;
+            },
+
             delay(ms) {
                 return new Promise(resolve => setTimeout(resolve, ms));
             },
@@ -3296,6 +3631,11 @@
 
                 // Save to history
                 this.saveSession(sessionData);
+
+                // Clear active session (assessment is complete)
+                if (this.state.storageAvailable) {
+                    localStorage.removeItem(this.CONFIG.ACTIVE_SESSION_KEY);
+                }
 
                 // Render report
                 this.elements.reportInfo.textContent =
