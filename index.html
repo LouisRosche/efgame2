@@ -1516,7 +1516,8 @@
                 sessionStart: null,
                 sessionId: null,
                 history: [],
-                storageAvailable: false
+                storageAvailable: false,
+                activeEventHandlers: {}  // Track active event listeners for cleanup
             },
 
             // DOM cache
@@ -1575,9 +1576,12 @@
                 this.testStorage();
                 this.cacheElements();
                 this.loadHistory();
-                this.loadActiveSession();
                 this.bindEvents();
-                this.showScreen('login');
+
+                // loadActiveSession will handle showing the correct screen
+                // If no active session, it will show login screen
+                this.loadActiveSession();
+
                 console.log('Initialization complete');
             },
 
@@ -1642,13 +1646,39 @@
 
             // Load active session (for recovery after page refresh)
             loadActiveSession() {
-                if (!this.state.storageAvailable) return;
+                if (!this.state.storageAvailable) {
+                    this.showScreen('login');
+                    return;
+                }
 
                 try {
                     const encrypted = localStorage.getItem(this.CONFIG.ACTIVE_SESSION_KEY);
                     if (encrypted) {
                         const decrypted = this.crypto.decrypt(encrypted, this.CONFIG.ENCRYPTION_KEY);
                         const activeSession = JSON.parse(decrypted);
+
+                        // Validate session structure
+                        if (!activeSession || typeof activeSession !== 'object') {
+                            console.warn('Invalid active session: not an object');
+                            localStorage.removeItem(this.CONFIG.ACTIVE_SESSION_KEY);
+                            this.showScreen('login');
+                            return;
+                        }
+
+                        if (!activeSession.user || !activeSession.userId || !activeSession.taskData || !activeSession.timestamp) {
+                            console.warn('Invalid active session: missing required fields');
+                            localStorage.removeItem(this.CONFIG.ACTIVE_SESSION_KEY);
+                            this.showScreen('login');
+                            return;
+                        }
+
+                        // Validate user object
+                        if (!activeSession.user.name || !activeSession.user.age || !activeSession.user.grade) {
+                            console.warn('Invalid active session: incomplete user data');
+                            localStorage.removeItem(this.CONFIG.ACTIVE_SESSION_KEY);
+                            this.showScreen('login');
+                            return;
+                        }
 
                         // Check if session is recent (within last 24 hours)
                         const sessionAge = Date.now() - activeSession.timestamp;
@@ -1662,7 +1692,7 @@
 
                             console.log('Active session restored:', this.state.userId);
 
-                            // Show recovery dialog
+                            // Show recovery dialog (after a brief delay to ensure DOM is ready)
                             setTimeout(() => {
                                 if (confirm('Welcome back! Would you like to continue your previous assessment?\n\n' +
                                            `${activeSession.user.name}, ${Object.keys(activeSession.taskData).length} of ${this.CONFIG.TASKS.length} tasks completed.`)) {
@@ -1670,20 +1700,25 @@
                                     this.renderTasks();
                                     this.showFeedback('Session restored! Continue where you left off.', 'success');
                                 } else {
-                                    // Clear active session
+                                    // User declined recovery - clear session and show login
                                     localStorage.removeItem(this.CONFIG.ACTIVE_SESSION_KEY);
                                     this.state.user = null;
                                     this.state.taskData = {};
+                                    this.showScreen('login');
                                 }
                             }, 500);
+                            return; // Don't show login screen yet
                         } else {
                             // Session too old, clear it
                             localStorage.removeItem(this.CONFIG.ACTIVE_SESSION_KEY);
                         }
                     }
+                    // No active session or session expired - show login
+                    this.showScreen('login');
                 } catch (error) {
                     console.warn('Could not load active session:', error);
                     localStorage.removeItem(this.CONFIG.ACTIVE_SESSION_KEY);
+                    this.showScreen('login');
                 }
             },
 
@@ -1833,7 +1868,22 @@
                 const total = this.CONFIG.TASKS.length;
                 const menuProgress = document.getElementById('menuProgress');
                 if (menuProgress) {
-                    menuProgress.innerHTML = `<div style="font-size: 1.125rem; font-weight: 600; color: var(--primary);">Assessment Progress: ${completed} of ${total} tasks completed</div><div style="font-size: 0.875rem; color: var(--text-muted); margin-top: 0.25rem;">Estimated time remaining: ~${(total - completed) * 4} minutes</div>`;
+                    // Use safe DOM creation instead of innerHTML
+                    menuProgress.textContent = '';
+                    const progressText = document.createElement('div');
+                    progressText.style.fontSize = '1.125rem';
+                    progressText.style.fontWeight = '600';
+                    progressText.style.color = 'var(--primary)';
+                    progressText.textContent = `Assessment Progress: ${completed} of ${total} tasks completed`;
+
+                    const timeText = document.createElement('div');
+                    timeText.style.fontSize = '0.875rem';
+                    timeText.style.color = 'var(--text-muted)';
+                    timeText.style.marginTop = '0.25rem';
+                    timeText.textContent = `Estimated time remaining: ~${(total - completed) * 4} minutes`;
+
+                    menuProgress.appendChild(progressText);
+                    menuProgress.appendChild(timeText);
                 }
 
                 this.CONFIG.TASKS.forEach((task, index) => {
@@ -1932,6 +1982,12 @@
             // Exit current task
             exitTask() {
                 if (confirm('Exit this task? Your progress on THIS task will be lost, but completed tasks are saved.')) {
+                    // Clean up any active event handlers to prevent memory leaks
+                    if (this.state.activeEventHandlers.digitSpan) {
+                        document.removeEventListener('keydown', this.state.activeEventHandlers.digitSpan);
+                        this.state.activeEventHandlers.digitSpan = null;
+                    }
+
                     this.state.currentTask = null;
                     this.state.currentTrial = 0;
                     this.showScreen('menu');
@@ -1980,7 +2036,7 @@
                 this.state.currentTrial = current;
                 this.state.totalTrials = total;
 
-                const percent = (current / total) * 100;
+                const percent = total > 0 ? (current / total) * 100 : 0;
                 this.elements.progressFill.style.width = `${percent}%`;
                 this.elements.progressText.textContent = `Trial ${current} of ${total}`;
                 this.elements.progressPercent.textContent = `${Math.round(percent)}%`;
@@ -2053,7 +2109,7 @@
                 await this.runNBackTrials(sequence, nLevel, false);
 
                 // Calculate performance
-                const accuracy = taskState.hits + taskState.correctRejections > 0
+                const accuracy = trials > 0 && taskState.hits + taskState.correctRejections > 0
                     ? (taskState.hits + taskState.correctRejections) / trials
                     : 0;
 
@@ -2500,6 +2556,7 @@
                             if (response.length === length) {
                                 setTimeout(() => {
                                     document.removeEventListener('keydown', keyHandler);
+                                    this.state.activeEventHandlers.digitSpan = null;  // Clear reference
                                     resolve(response);
                                 }, 300);
                             }
@@ -2538,11 +2595,13 @@
                             }
                         } else if (key === 'Escape') {
                             e.preventDefault();
+                            e.stopPropagation();  // Prevent global escape handler from triggering
                             clearInput();
                         }
                     };
 
                     document.addEventListener('keydown', keyHandler);
+                    this.state.activeEventHandlers.digitSpan = keyHandler;  // Store for cleanup
 
                     // Create instruction hint
                     const hint = document.createElement('div');
@@ -2737,9 +2796,9 @@
 
                 // Calculate d-prime
                 const hitRate = Math.max(0.01, Math.min(0.99,
-                    taskState.hits / (taskState.hits + taskState.misses)));
+                    taskState.hits / Math.max(1, taskState.hits + taskState.misses)));
                 const faRate = Math.max(0.01, Math.min(0.99,
-                    taskState.falseAlarms / (taskState.falseAlarms + taskState.correctRejections)));
+                    taskState.falseAlarms / Math.max(1, taskState.falseAlarms + taskState.correctRejections)));
 
                 const dPrime = this.calculateDPrime(hitRate, faRate);
                 const medianRT = this.calculateMedian(taskState.reactionTimes.filter(rt => rt > 0));
@@ -2858,8 +2917,8 @@
                 const medianIncongruentRT = this.calculateMedian(taskState.incongruentRT);
                 const interferenceEffect = medianIncongruentRT - medianCongruentRT;
 
-                const congruentAccuracy = taskState.congruentRT.length / numCongruent;
-                const incongruentAccuracy = taskState.incongruentRT.length / numIncongruent;
+                const congruentAccuracy = numCongruent > 0 ? taskState.congruentRT.length / numCongruent : 0;
+                const incongruentAccuracy = numIncongruent > 0 ? taskState.incongruentRT.length / numIncongruent : 0;
 
                 // Calculate score
                 const score = this.calculateStroopScore(interferenceEffect, incongruentAccuracy, this.state.user.age);
@@ -2935,7 +2994,16 @@
                 instructions.style.color = 'var(--text-muted)';
                 instructions.style.fontSize = '0.875rem';
                 instructions.style.fontWeight = '600';
-                instructions.innerHTML = '<strong>Name the COLOR:</strong><br>R = Red  |  B = Blue  |  G = Green  |  Y = Yellow';
+
+                // Use safe DOM creation
+                const strongText = document.createElement('strong');
+                strongText.textContent = 'Name the COLOR:';
+                const br = document.createElement('br');
+                const keyText = document.createTextNode('R = Red  |  B = Blue  |  G = Green  |  Y = Yellow');
+
+                instructions.appendChild(strongText);
+                instructions.appendChild(br);
+                instructions.appendChild(keyText);
                 this.elements.gameArea.appendChild(instructions);
 
                 // Add touch-friendly color buttons for mobile
@@ -3044,8 +3112,10 @@
                 const medianSwitchRT = this.calculateMedian(taskState.switchRT);
                 const switchCost = medianSwitchRT - medianRepeatRT;
 
-                const repeatAccuracy = taskState.repeatRT.length / (taskState.repeatRT.length + taskState.repeatErrors);
-                const switchAccuracy = taskState.switchRT.length / (taskState.switchRT.length + taskState.switchErrors);
+                const repeatTotal = taskState.repeatRT.length + taskState.repeatErrors;
+                const switchTotal = taskState.switchRT.length + taskState.switchErrors;
+                const repeatAccuracy = repeatTotal > 0 ? taskState.repeatRT.length / repeatTotal : 0;
+                const switchAccuracy = switchTotal > 0 ? taskState.switchRT.length / switchTotal : 0;
 
                 // Calculate score
                 const score = this.calculateTaskSwitchScore(switchCost, switchAccuracy, this.state.user.age);
@@ -3250,7 +3320,8 @@
                 // Remove outliers using Mean ±2SD method (research standard)
                 const cleanedRT = this.removeOutliers(taskState.reactionTimes);
                 const medianRT = this.calculateMedian(cleanedRT);
-                const accuracy = cleanedRT.length / (cleanedRT.length + taskState.errors);
+                const totalResponses = cleanedRT.length + taskState.errors;
+                const accuracy = totalResponses > 0 ? cleanedRT.length / totalResponses : 0;
 
                 // Calculate score
                 const score = this.calculateChoiceRTScore(medianRT, accuracy, this.state.user.age);
@@ -3337,7 +3408,7 @@
             // Calculate percentile rank
             calculatePercentile(rawScore, age) {
                 const norms = this.getAgeNorms(age);
-                const zScore = (rawScore - norms.mean) / norms.sd;
+                const zScore = norms.sd > 0 ? (rawScore - norms.mean) / norms.sd : 0;
 
                 // Convert z-score to percentile using normal CDF approximation
                 const percentile = this.normalCDF(zScore) * 100;
@@ -3611,7 +3682,9 @@
             showReport() {
                 const scores = this.state.taskData;
                 const taskScores = Object.values(scores).map(t => t.score);
-                const avgScore = taskScores.reduce((a, b) => a + b, 0) / taskScores.length;
+                const avgScore = taskScores.length > 0
+                    ? taskScores.reduce((a, b) => a + b, 0) / taskScores.length
+                    : 0;
 
                 // Prepare session data
                 const sessionData = {
@@ -3892,12 +3965,19 @@
 
             reset() {
                 if (confirm('Start a new session? Your data has been saved.')) {
+                    // Clear state
                     this.state.user = null;
                     this.state.userId = null;
                     this.state.sessionId = null;
                     this.state.currentTask = null;
                     this.state.taskData = {};
 
+                    // CRITICAL: Clear active session from localStorage to prevent stale recovery
+                    if (this.state.storageAvailable) {
+                        localStorage.removeItem(this.CONFIG.ACTIVE_SESSION_KEY);
+                    }
+
+                    // Clear form
                     document.getElementById('name').value = '';
                     document.getElementById('age').value = '';
                     document.getElementById('grade').value = '';
