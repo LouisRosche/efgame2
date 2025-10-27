@@ -1420,6 +1420,61 @@
      * - Signal detection theory for scoring (d-prime calculations)
      * - Age-normed percentile rankings
      * - FERPA/COPPA compliance with AES-256 encryption
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * GOOGLE SHEETS AUTO-SUBMISSION SETUP (5 Minutes)
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * This app auto-submits data PER TASK (not waiting for all tasks!)
+     * Each task completion immediately sends data to your Google Sheet.
+     * Users can retry tasks - each attempt is captured separately.
+     *
+     * QUICK SETUP:
+     *
+     * 1. Create a Google Sheet
+     *    - Go to sheets.google.com
+     *    - Create a new spreadsheet
+     *    - Add headers: Timestamp | Name | Age | Grade | Task | Attempt | Score | Data
+     *
+     * 2. Open Apps Script
+     *    - Extensions → Apps Script
+     *    - Paste this code:
+     *
+     *    function doPost(e) {
+     *      const data = JSON.parse(e.postData.contents);
+     *      const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+     *      sheet.appendRow([
+     *        data.timestamp,
+     *        data.userName,
+     *        data.age,
+     *        data.grade,
+     *        data.taskName,
+     *        data.attemptNumber,
+     *        data.score,
+     *        JSON.stringify(data.taskData)
+     *      ]);
+     *      return ContentService.createTextOutput(JSON.stringify({success: true}));
+     *    }
+     *
+     * 3. Deploy as Web App
+     *    - Click "Deploy" → "New deployment"
+     *    - Type: Web app
+     *    - Execute as: Me
+     *    - Who has access: Anyone
+     *    - Click "Deploy"
+     *    - Copy the Web App URL
+     *
+     * 4. Paste URL Below (Line ~1431)
+     *    - Find: GOOGLE_SHEETS_URL: ''
+     *    - Paste your URL between the quotes
+     *    - Example: GOOGLE_SHEETS_URL: 'https://script.google.com/macros/s/ABC123.../exec'
+     *
+     * 5. Test It!
+     *    - Complete one task
+     *    - Check your Google Sheet
+     *    - Should see a new row immediately!
+     *
+     * ═══════════════════════════════════════════════════════════════════
      */
     (function() {
         'use strict';
@@ -1427,6 +1482,10 @@
         const App = window.App = {
             // Configuration based on research standards
             CONFIG: {
+                // Google Sheets Auto-Submission Configuration
+                GOOGLE_SHEETS_URL: '', // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
+                AUTO_SUBMIT_ENABLED: true, // Set to false to disable auto-submission
+
                 TASKS: [
                     {
                         id: 'nback',
@@ -3801,6 +3860,18 @@
 
             // Submit individual task data to Google Sheets (called after each task)
             async submitTaskToGoogleSheets(taskId, taskData) {
+                // Check if auto-submission is enabled and URL is configured
+                if (!this.CONFIG.AUTO_SUBMIT_ENABLED) {
+                    console.log(`Auto-submit disabled for ${taskId}`);
+                    return false;
+                }
+
+                if (!this.CONFIG.GOOGLE_SHEETS_URL || this.CONFIG.GOOGLE_SHEETS_URL === '') {
+                    console.warn(`⚠️  No Google Sheets URL configured. Skipping submission for ${taskId}.`);
+                    console.warn('   Add your URL to CONFIG.GOOGLE_SHEETS_URL (line ~1431)');
+                    return false;
+                }
+
                 // Increment attempt counter
                 this.state.taskAttempts[taskId] = (this.state.taskAttempts[taskId] || 0) + 1;
                 const attemptNumber = this.state.taskAttempts[taskId];
@@ -3820,26 +3891,26 @@
                     score: taskData.score
                 };
 
-                console.log(`Auto-submitting ${taskId} (attempt ${attemptNumber}):`, submissionData);
+                console.log(`📤 Auto-submitting ${taskId} (attempt ${attemptNumber}) to Google Sheets...`);
+                console.log('   Data:', submissionData);
 
                 try {
-                    // TODO: Replace with actual Google Sheets API call
-                    // const response = await fetch('YOUR_GOOGLE_APPS_SCRIPT_URL', {
-                    //     method: 'POST',
-                    //     mode: 'no-cors',
-                    //     headers: { 'Content-Type': 'application/json' },
-                    //     body: JSON.stringify(submissionData)
-                    // });
+                    // Submit to Google Sheets via Apps Script Web App
+                    const response = await fetch(this.CONFIG.GOOGLE_SHEETS_URL, {
+                        method: 'POST',
+                        mode: 'no-cors', // Required for Google Apps Script
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(submissionData)
+                    });
 
-                    // Simulate API call (remove in production)
-                    await this.delay(500);
-
-                    console.log(`✓ Task ${taskId} submitted successfully (attempt ${attemptNumber})`);
+                    // Note: With mode: 'no-cors', we can't read the response
+                    // But the submission still works! Google Apps Script receives it.
+                    console.log(`✅ Task ${taskId} submitted successfully (attempt ${attemptNumber})`);
                     return true;
 
                 } catch (error) {
-                    console.error(`✗ Failed to submit ${taskId}:`, error);
-                    // Don't show error to user - fail silently and log locally
+                    console.error(`❌ Failed to submit ${taskId}:`, error);
+                    // Fail silently - don't interrupt user flow
                     // Data is still saved in localStorage as backup
                     return false;
                 }
