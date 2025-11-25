@@ -759,7 +759,7 @@
         }
 
         .recommendations li::before {
-            content: "→ ";
+            content: '→ ';
             font-weight: bold;
         }
 
@@ -1107,7 +1107,7 @@
     </style>
 </head>
 <body>
-    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <a href="#mainContent" class="skip-link">Skip to main content</a>
 
     <div class="app-container" role="main">
         <header class="header" role="banner">
@@ -1115,7 +1115,7 @@
             <p>Evidence-Based Executive Function Assessment</p>
         </header>
 
-        <main id="main-content" class="content">
+        <main id="mainContent" class="content">
             <!-- Login Screen -->
             <div id="loginScreen" class="screen active" role="region" aria-label="Welcome screen">
                 <div class="form-container">
@@ -1130,8 +1130,8 @@
                                 required
                                 maxlength="50"
                                 aria-required="true"
-                                aria-describedby="name-help">
-                            <small id="name-help" class="visually-hidden">Enter your first name only</small>
+                                aria-describedby="nameHelp">
+                            <small id="nameHelp" class="visually-hidden">Enter your first name only</small>
                         </div>
 
                         <div class="form-row">
@@ -1145,8 +1145,8 @@
                                     min="6"
                                     max="18"
                                     aria-required="true"
-                                    aria-describedby="age-help">
-                                <small id="age-help" class="visually-hidden">Enter age between 6 and 18</small>
+                                    aria-describedby="ageHelp">
+                                <small id="ageHelp" class="visually-hidden">Enter age between 6 and 18</small>
                             </div>
 
                             <div class="form-group">
@@ -1370,8 +1370,8 @@
                             );
                         }
                         return btoa(result);
-                    } catch (e) {
-                        console.error('Encryption failed:', e);
+                    } catch (error) {
+                        console.error('Encryption failed:', error);
                         return text;
                     }
                 },
@@ -1386,8 +1386,8 @@
                             );
                         }
                         return result;
-                    } catch (e) {
-                        console.error('Decryption failed:', e);
+                    } catch (error) {
+                        console.error('Decryption failed:', error);
                         return encoded;
                     }
                 },
@@ -1423,7 +1423,7 @@
                     localStorage.setItem(test, test);
                     localStorage.removeItem(test);
                     this.state.storageAvailable = true;
-                } catch(e) {
+                } catch (error) {
                     console.warn('localStorage not available');
                     this.state.storageAvailable = false;
                 }
@@ -1652,7 +1652,7 @@
                 this.showScreen('game');
 
                 // Route to appropriate task
-                switch(taskId) {
+                switch (taskId) {
                     case 'nback':
                         this.runNBack();
                         break;
