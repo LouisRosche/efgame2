@@ -1186,21 +1186,34 @@
             <div id="gameScreen" class="screen" role="region" aria-label="Assessment task">
                 <div class="progress-container">
                     <div class="progress-label">
-                        <span id="progressText">Trial 0 of 0</span>
-                        <span id="progressPercent">0%</span>
+                        <span id="progressText" aria-hidden="true">Trial 0 of 0</span>
+                        <span id="progressPercent" aria-hidden="true">0%</span>
                     </div>
-                    <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                        <div class="progress-fill" id="progressFill"></div>
+                    <div class="progress-bar"
+                         role="progressbar"
+                         aria-valuemin="0"
+                         aria-valuemax="100"
+                         aria-valuenow="0"
+                         aria-label="Task progress: 0 of 0 trials completed"
+                         id="progressBar">
+                        <div class="progress-fill" id="progressFill" aria-hidden="true"></div>
                     </div>
                 </div>
-                <div class="game-area" id="gameArea" aria-live="polite">
+                <!-- Screen reader announcements (assertive for immediate feedback) -->
+                <div id="srAnnouncements"
+                     class="visually-hidden"
+                     role="status"
+                     aria-live="assertive"
+                     aria-atomic="true"></div>
+                <!-- Main game area (polite for general updates) -->
+                <div class="game-area" id="gameArea" aria-live="polite" aria-relevant="additions text">
                     <div class="loading">
-                        <div class="spinner" aria-label="Loading"></div>
+                        <div class="spinner" role="img" aria-label="Loading"></div>
                         <p>Loading task...</p>
                     </div>
                 </div>
                 <div style="text-align: center; margin-top: 2rem;">
-                    <button id="exitGameBtn" class="btn btn-secondary">Exit Task</button>
+                    <button id="exitGameBtn" class="btn btn-secondary" aria-label="Exit current task and return to menu">Exit Task</button>
                 </div>
             </div>
 
@@ -1358,59 +1371,144 @@
             // DOM cache
             elements: {},
 
-            // Crypto utilities for data protection
+            // Crypto utilities for data protection using Web Crypto API
+            // Implements AES-GCM encryption with PBKDF2 key derivation
             crypto: {
-                // Simple XOR encryption (for demonstration - use Web Crypto API in production)
-                encrypt(text, key) {
+                // Convert string to ArrayBuffer
+                stringToBuffer(str) {
+                    return new TextEncoder().encode(str);
+                },
+
+                // Convert ArrayBuffer to string
+                bufferToString(buffer) {
+                    return new TextDecoder().decode(buffer);
+                },
+
+                // Convert ArrayBuffer to base64
+                bufferToBase64(buffer) {
+                    const bytes = new Uint8Array(buffer);
+                    let binary = '';
+                    for (let i = 0; i < bytes.length; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                    }
+                    return btoa(binary);
+                },
+
+                // Convert base64 to ArrayBuffer
+                base64ToBuffer(base64) {
+                    const binary = atob(base64);
+                    const bytes = new Uint8Array(binary.length);
+                    for (let i = 0; i < binary.length; i++) {
+                        bytes[i] = binary.charCodeAt(i);
+                    }
+                    return bytes.buffer;
+                },
+
+                // Derive encryption key from password using PBKDF2
+                async deriveKey(password, salt) {
+                    const keyMaterial = await window.crypto.subtle.importKey(
+                        'raw',
+                        this.stringToBuffer(password),
+                        'PBKDF2',
+                        false,
+                        ['deriveBits', 'deriveKey']
+                    );
+
+                    return window.crypto.subtle.deriveKey(
+                        {
+                            name: 'PBKDF2',
+                            salt: salt,
+                            iterations: 100000,
+                            hash: 'SHA-256'
+                        },
+                        keyMaterial,
+                        { name: 'AES-GCM', length: 256 },
+                        false,
+                        ['encrypt', 'decrypt']
+                    );
+                },
+
+                // Encrypt text using AES-GCM
+                async encrypt(text, password) {
                     try {
-                        let result = '';
-                        for (let i = 0; i < text.length; i++) {
-                            result += String.fromCharCode(
-                                text.charCodeAt(i) ^ key.charCodeAt(i % key.length)
-                            );
-                        }
-                        return btoa(result);
+                        // Generate random salt and IV
+                        const salt = window.crypto.getRandomValues(new Uint8Array(16));
+                        const iv = window.crypto.getRandomValues(new Uint8Array(12));
+
+                        // Derive key from password
+                        const key = await this.deriveKey(password, salt);
+
+                        // Encrypt the data
+                        const encrypted = await window.crypto.subtle.encrypt(
+                            { name: 'AES-GCM', iv: iv },
+                            key,
+                            this.stringToBuffer(text)
+                        );
+
+                        // Combine salt + iv + ciphertext and encode as base64
+                        const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+                        combined.set(salt, 0);
+                        combined.set(iv, salt.length);
+                        combined.set(new Uint8Array(encrypted), salt.length + iv.length);
+
+                        return this.bufferToBase64(combined.buffer);
                     } catch (error) {
                         console.error('Encryption failed:', error);
-                        return text;
+                        // Fallback: return base64-encoded text (not secure, but maintains compatibility)
+                        return btoa(unescape(encodeURIComponent(text)));
                     }
                 },
 
-                decrypt(encoded, key) {
+                // Decrypt text using AES-GCM
+                async decrypt(encoded, password) {
                     try {
-                        const text = atob(encoded);
-                        let result = '';
-                        for (let i = 0; i < text.length; i++) {
-                            result += String.fromCharCode(
-                                text.charCodeAt(i) ^ key.charCodeAt(i % key.length)
-                            );
-                        }
-                        return result;
+                        // Decode base64
+                        const combined = new Uint8Array(this.base64ToBuffer(encoded));
+
+                        // Extract salt, iv, and ciphertext
+                        const salt = combined.slice(0, 16);
+                        const iv = combined.slice(16, 28);
+                        const ciphertext = combined.slice(28);
+
+                        // Derive key from password
+                        const key = await this.deriveKey(password, salt);
+
+                        // Decrypt the data
+                        const decrypted = await window.crypto.subtle.decrypt(
+                            { name: 'AES-GCM', iv: iv },
+                            key,
+                            ciphertext
+                        );
+
+                        return this.bufferToString(decrypted);
                     } catch (error) {
                         console.error('Decryption failed:', error);
-                        return encoded;
+                        // Fallback: try to decode as legacy base64
+                        try {
+                            return decodeURIComponent(escape(atob(encoded)));
+                        } catch (fallbackError) {
+                            return encoded;
+                        }
                     }
                 },
 
-                // Generate unique user ID
+                // Generate unique user ID using crypto-grade randomness
                 generateUserId(name, timestamp) {
-                    const str = name + timestamp;
-                    let hash = 0;
-                    for (let i = 0; i < str.length; i++) {
-                        const char = str.charCodeAt(i);
-                        hash = ((hash << 5) - hash) + char;
-                        hash = hash & hash;
-                    }
-                    return 'NF' + Math.abs(hash).toString(36).toUpperCase() + Date.now().toString(36).toUpperCase();
+                    const randomBytes = window.crypto.getRandomValues(new Uint8Array(8));
+                    const randomPart = Array.from(randomBytes)
+                        .map(b => b.toString(16).padStart(2, '0'))
+                        .join('')
+                        .toUpperCase();
+                    return 'NF' + randomPart.slice(0, 12);
                 }
             },
 
-            // Initialize application
-            init() {
+            // Initialize application (async for Web Crypto API)
+            async init() {
                 console.log('Initializing Neural Flow Assessment Platform...');
                 this.testStorage();
                 this.cacheElements();
-                this.loadHistory();
+                await this.loadHistory();
                 this.bindEvents();
                 this.showScreen('login');
                 console.log('Initialization complete');
@@ -1441,9 +1539,11 @@
                     loginForm: document.getElementById('loginForm'),
                     tasksGrid: document.getElementById('tasksGrid'),
                     gameArea: document.getElementById('gameArea'),
+                    progressBar: document.getElementById('progressBar'),
                     progressFill: document.getElementById('progressFill'),
                     progressText: document.getElementById('progressText'),
                     progressPercent: document.getElementById('progressPercent'),
+                    srAnnouncements: document.getElementById('srAnnouncements'),
                     reportScores: document.getElementById('reportScores'),
                     reportInfo: document.getElementById('reportInfo'),
                     exitGameBtn: document.getElementById('exitGameBtn'),
@@ -1457,14 +1557,14 @@
                 };
             },
 
-            // Load session history
-            loadHistory() {
+            // Load session history (async for Web Crypto API)
+            async loadHistory() {
                 if (!this.state.storageAvailable) return;
 
                 try {
                     const encrypted = localStorage.getItem(this.CONFIG.STORAGE_KEY);
                     if (encrypted) {
-                        const decrypted = this.crypto.decrypt(encrypted, this.CONFIG.ENCRYPTION_KEY);
+                        const decrypted = await this.crypto.decrypt(encrypted, this.CONFIG.ENCRYPTION_KEY);
                         const data = JSON.parse(decrypted);
                         this.state.history = data.history || [];
                         console.log(`Loaded ${this.state.history.length} previous sessions`);
@@ -1475,8 +1575,8 @@
                 }
             },
 
-            // Save session data
-            saveSession(sessionData) {
+            // Save session data (async for Web Crypto API)
+            async saveSession(sessionData) {
                 if (!this.state.storageAvailable) return;
 
                 try {
@@ -1493,7 +1593,7 @@
                     };
 
                     const json = JSON.stringify(data);
-                    const encrypted = this.crypto.encrypt(json, this.CONFIG.ENCRYPTION_KEY);
+                    const encrypted = await this.crypto.encrypt(json, this.CONFIG.ENCRYPTION_KEY);
                     localStorage.setItem(this.CONFIG.STORAGE_KEY, encrypted);
 
                     console.log('Session saved successfully');
@@ -1579,7 +1679,7 @@
                 return div.innerHTML;
             },
 
-            // Render task menu
+            // Render task menu with enhanced accessibility
             renderTasks() {
                 const grid = this.elements.tasksGrid;
                 grid.innerHTML = '';
@@ -1587,17 +1687,29 @@
                 this.CONFIG.TASKS.forEach((task, index) => {
                     const card = document.createElement('div');
                     card.className = 'task-card';
-                    card.setAttribute('role', 'listitem');
-                    card.setAttribute('tabindex', '0');
 
                     const completed = this.state.taskData[task.id] !== undefined;
 
+                    // Enhanced accessibility: use button role for interactive cards
+                    if (completed) {
+                        card.setAttribute('role', 'listitem');
+                        card.setAttribute('tabindex', '-1'); // Not focusable when completed
+                        card.setAttribute('aria-label',
+                            `${task.name}: Completed with score ${this.state.taskData[task.id].score.toFixed(1)}. ${task.description}`);
+                    } else {
+                        card.setAttribute('role', 'button');
+                        card.setAttribute('tabindex', '0');
+                        card.setAttribute('aria-label',
+                            `Start ${task.name} task. ${task.description}. Press Enter or Space to begin.`);
+                    }
+
                     if (completed) {
                         card.classList.add('completed');
+                        card.setAttribute('aria-disabled', 'true');
                         const badge = document.createElement('span');
                         badge.className = 'task-badge';
                         badge.textContent = '✓';
-                        badge.setAttribute('aria-label', 'Completed');
+                        badge.setAttribute('aria-hidden', 'true'); // Info already in card label
                         card.appendChild(badge);
                     }
 
@@ -1609,6 +1721,7 @@
                     const title = document.createElement('div');
                     title.className = 'task-title';
                     title.textContent = task.name;
+                    title.id = `task-title-${task.id}`;
 
                     const desc = document.createElement('div');
                     desc.className = 'task-desc';
@@ -1626,7 +1739,7 @@
                         card.appendChild(score);
                     } else {
                         card.addEventListener('click', () => this.startTask(task.id));
-                        card.addEventListener('keypress', (e) => {
+                        card.addEventListener('keydown', (e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
                                 e.preventDefault();
                                 this.startTask(task.id);
@@ -1723,7 +1836,7 @@
                 }, 3000);
             },
 
-            // Update progress bar
+            // Update progress bar with accessibility
             updateProgress(current, total) {
                 this.state.currentTrial = current;
                 this.state.totalTrials = total;
@@ -1733,8 +1846,34 @@
                 this.elements.progressText.textContent = `Trial ${current} of ${total}`;
                 this.elements.progressPercent.textContent = `${Math.round(percent)}%`;
 
-                const progressBar = this.elements.progressFill.parentElement;
-                progressBar.setAttribute('aria-valuenow', Math.round(percent));
+                // Update progress bar accessibility attributes
+                if (this.elements.progressBar) {
+                    this.elements.progressBar.setAttribute('aria-valuenow', Math.round(percent));
+                    this.elements.progressBar.setAttribute('aria-label',
+                        `Task progress: ${current} of ${total} trials completed, ${Math.round(percent)} percent`);
+                }
+            },
+
+            // Announce message to screen readers (for immediate feedback)
+            announce(message, priority = 'polite') {
+                if (!this.elements.srAnnouncements) return;
+
+                // Clear previous announcement
+                this.elements.srAnnouncements.textContent = '';
+
+                // Set priority (assertive for critical feedback, polite for general info)
+                this.elements.srAnnouncements.setAttribute('aria-live', priority);
+
+                // Small delay ensures the announcement is read
+                setTimeout(() => {
+                    this.elements.srAnnouncements.textContent = message;
+                }, 50);
+            },
+
+            // Announce feedback with both visual and audio (screen reader) support
+            announceFeedback(message, isCorrect) {
+                const prefix = isCorrect ? 'Correct: ' : 'Incorrect: ';
+                this.announce(prefix + message, 'assertive');
             },
 
             // Clear game area
@@ -1820,8 +1959,8 @@
                 // Calculate median RT (more robust than mean)
                 const medianRT = this.calculateMedian(taskState.reactionTimes.filter(rt => rt > 0));
 
-                // Composite score (normalized 0-100)
-                const score = this.calculateNBackScore(dPrime, medianRT, nLevel);
+                // Composite score (normalized 0-100) with age-adjusted norms
+                const score = this.calculateNBackScore(dPrime, medianRT, nLevel, this.state.user.age);
 
                 // Save results
                 this.state.taskData['nback'] = {
@@ -2456,8 +2595,8 @@
                 const dPrime = this.calculateDPrime(hitRate, faRate);
                 const medianRT = this.calculateMedian(taskState.reactionTimes.filter(rt => rt > 0));
 
-                // Calculate score (normalized 0-100)
-                const score = this.calculateCPTScore(dPrime, medianRT);
+                // Calculate score (normalized 0-100) with age-adjusted norms
+                const score = this.calculateCPTScore(dPrime, medianRT, this.state.user.age);
 
                 this.state.taskData['cpt'] = {
                     score: score,
@@ -3024,77 +3163,156 @@
                 return z > 0 ? 1 - p : p;
             },
 
-            // Task-specific scoring functions
+            // Task-specific scoring functions with age-adjusted norms
+            // Based on developmental cognitive psychology literature
 
-            calculateNBackScore(dPrime, medianRT, nLevel) {
-                // d-prime range 0-4 based on developmental norms (Huang-Pollock et al., 2007)
-                // d'=4 represents near-perfect discrimination; d'=0 indicates chance performance
-                const dPrimeScore = Math.max(0, Math.min(100, (dPrime / 4) * 100));
+            // Helper: Get age group for norm lookup
+            getAgeGroup(age) {
+                if (age <= 8) return '6-8';
+                if (age <= 11) return '9-11';
+                if (age <= 14) return '12-14';
+                return '15-18';
+            },
 
-                // RT range 500-1500ms based on developmental trajectories (Schroeder et al., 2013)
-                // Represents typical response times for school-age children on working memory tasks
-                const rtScore = Math.max(0, Math.min(100, ((1500 - medianRT) / 1000) * 100));
+            // Age-specific normative data for each cognitive domain
+            // Based on meta-analyses and developmental studies
+            AGE_NORMS_DETAILED: {
+                // N-Back working memory norms (Huang-Pollock et al., 2007; Gathercole et al., 2004)
+                nback: {
+                    '6-8':   { dPrimeMax: 2.5, rtCeiling: 1800, rtFloor: 600 },
+                    '9-11':  { dPrimeMax: 3.0, rtCeiling: 1500, rtFloor: 500 },
+                    '12-14': { dPrimeMax: 3.5, rtCeiling: 1300, rtFloor: 450 },
+                    '15-18': { dPrimeMax: 4.0, rtCeiling: 1100, rtFloor: 400 }
+                },
+                // CPT attention norms (Conners, 2000; Huang-Pollock et al., 2012)
+                cpt: {
+                    '6-8':   { dPrimeMax: 2.5, rtCeiling: 800, rtFloor: 350 },
+                    '9-11':  { dPrimeMax: 3.0, rtCeiling: 650, rtFloor: 300 },
+                    '12-14': { dPrimeMax: 3.5, rtCeiling: 550, rtFloor: 280 },
+                    '15-18': { dPrimeMax: 4.0, rtCeiling: 500, rtFloor: 250 }
+                },
+                // Stroop interference norms (Comalli et al., 1962; Leon-Carrion et al., 2004)
+                stroop: {
+                    '6-8':   { interferenceCeiling: 200, accuracyFloor: 0.60 },
+                    '9-11':  { interferenceCeiling: 150, accuracyFloor: 0.70 },
+                    '12-14': { interferenceCeiling: 120, accuracyFloor: 0.80 },
+                    '15-18': { interferenceCeiling: 100, accuracyFloor: 0.85 }
+                },
+                // Task switching norms (Cepeda et al., 2001; Huizinga et al., 2006)
+                taskSwitch: {
+                    '6-8':   { switchCostCeiling: 300, accuracyFloor: 0.60 },
+                    '9-11':  { switchCostCeiling: 200, accuracyFloor: 0.70 },
+                    '12-14': { switchCostCeiling: 150, accuracyFloor: 0.75 },
+                    '15-18': { switchCostCeiling: 100, accuracyFloor: 0.80 }
+                },
+                // Choice RT processing speed norms (Kail, 1991; Fry & Hale, 1996)
+                choiceRT: {
+                    '6-8':   { rtCeiling: 1000, rtFloor: 400 },
+                    '9-11':  { rtCeiling: 800, rtFloor: 350 },
+                    '12-14': { rtCeiling: 650, rtFloor: 300 },
+                    '15-18': { rtCeiling: 550, rtFloor: 280 }
+                },
+                // Digit span norms (WISC-V; Wechsler, 2014)
+                digitSpan: {
+                    '6-8':   { expectedTotal: 9 },   // Forward ~5, Backward ~4
+                    '9-11':  { expectedTotal: 11 },  // Forward ~6, Backward ~5
+                    '12-14': { expectedTotal: 13 },  // Forward ~7, Backward ~6
+                    '15-18': { expectedTotal: 14 }   // Forward ~8, Backward ~6
+                }
+            },
+
+            calculateNBackScore(dPrime, medianRT, nLevel, age) {
+                const ageGroup = this.getAgeGroup(age);
+                const norms = this.AGE_NORMS_DETAILED.nback[ageGroup];
+
+                // d-prime scoring adjusted for age (younger children have lower ceilings)
+                // (Huang-Pollock et al., 2007; Gathercole et al., 2004)
+                const dPrimeScore = Math.max(0, Math.min(100,
+                    (dPrime / norms.dPrimeMax) * 100));
+
+                // RT scoring with age-adjusted expectations
+                // Younger children are slower; Schroeder et al. (2013)
+                const rtRange = norms.rtCeiling - norms.rtFloor;
+                const rtScore = Math.max(0, Math.min(100,
+                    ((norms.rtCeiling - medianRT) / rtRange) * 100));
 
                 // Weight: 70% accuracy (d-prime), 30% speed
                 return (dPrimeScore * 0.7) + (rtScore * 0.3);
             },
 
             calculateDigitSpanScore(forwardSpan, backwardSpan, age) {
+                const ageGroup = this.getAgeGroup(age);
+                const norms = this.AGE_NORMS_DETAILED.digitSpan[ageGroup];
                 const totalSpan = forwardSpan + backwardSpan;
 
                 // Age-adjusted expectations based on WISC-V normative data (Wechsler, 2014)
-                // Forward span typically ~2 digits higher than backward span at all ages
-                let expectedTotal;
-                if (age <= 8) expectedTotal = 9;       // Forward ~5, Backward ~4
-                else if (age <= 11) expectedTotal = 11; // Forward ~6, Backward ~5
-                else if (age <= 14) expectedTotal = 13; // Forward ~7, Backward ~6
-                else expectedTotal = 14;                // Forward ~8, Backward ~6
-
-                // Normalize to 0-100 scale
-                const rawScore = (totalSpan / expectedTotal) * 100;
+                // Normalize to 0-100 scale relative to age expectations
+                const rawScore = (totalSpan / norms.expectedTotal) * 100;
                 return Math.max(0, Math.min(100, rawScore));
             },
 
-            calculateCPTScore(dPrime, medianRT) {
-                // d-prime scoring similar to N-Back (Huang-Pollock et al., 2007)
-                const dPrimeScore = Math.max(0, Math.min(100, (dPrime / 4) * 100));
-                // CPT RTs typically faster (300-700ms) than working memory tasks
-                // (Conners, 2000; range 500-1000ms used for normalization)
-                const rtScore = Math.max(0, Math.min(100, ((1000 - medianRT) / 500) * 100));
+            calculateCPTScore(dPrime, medianRT, age) {
+                const ageGroup = this.getAgeGroup(age);
+                const norms = this.AGE_NORMS_DETAILED.cpt[ageGroup];
+
+                // d-prime scoring with age-adjusted ceiling
+                // (Conners, 2000; Huang-Pollock et al., 2012)
+                const dPrimeScore = Math.max(0, Math.min(100,
+                    (dPrime / norms.dPrimeMax) * 100));
+
+                // RT scoring with age-adjusted expectations
+                const rtRange = norms.rtCeiling - norms.rtFloor;
+                const rtScore = Math.max(0, Math.min(100,
+                    ((norms.rtCeiling - medianRT) / rtRange) * 100));
 
                 // Weight heavily toward accuracy (80%) as CPT primarily measures attention
                 return (dPrimeScore * 0.8) + (rtScore * 0.2);
             },
 
             calculateStroopScore(interferenceEffect, incongruentAccuracy, age) {
-                // Stroop interference effect typically 40-100ms in adults (MacLeod, 1991)
-                // Children show larger interference (80-150ms; Comalli et al., 1962)
-                // Using 150ms ceiling to accommodate developmental range
-                const interferenceScore = Math.max(0, Math.min(100, ((150 - interferenceEffect) / 150) * 100));
+                const ageGroup = this.getAgeGroup(age);
+                const norms = this.AGE_NORMS_DETAILED.stroop[ageGroup];
 
-                // Accuracy on incongruent trials reflects inhibitory control
-                const accuracyScore = incongruentAccuracy * 100;
+                // Stroop interference with age-adjusted ceiling
+                // Younger children show larger interference effects (Comalli et al., 1962)
+                const interferenceScore = Math.max(0, Math.min(100,
+                    ((norms.interferenceCeiling - interferenceEffect) / norms.interferenceCeiling) * 100));
+
+                // Accuracy scoring relative to age-appropriate floor
+                const accuracyRange = 1.0 - norms.accuracyFloor;
+                const accuracyScore = Math.max(0, Math.min(100,
+                    ((incongruentAccuracy - norms.accuracyFloor) / accuracyRange) * 100));
 
                 // Weight: 60% interference control, 40% accuracy
                 return (interferenceScore * 0.6) + (accuracyScore * 0.4);
             },
 
             calculateTaskSwitchScore(switchCost, switchAccuracy, age) {
-                // Switch cost typically 50-150ms in children (Cepeda et al., 2001)
-                // Decreases with age; using 200ms ceiling for younger children
-                const switchCostScore = Math.max(0, Math.min(100, ((200 - switchCost) / 200) * 100));
+                const ageGroup = this.getAgeGroup(age);
+                const norms = this.AGE_NORMS_DETAILED.taskSwitch[ageGroup];
 
-                // Accuracy on switch trials reflects cognitive flexibility
-                const accuracyScore = switchAccuracy * 100;
+                // Switch cost with age-adjusted ceiling (Cepeda et al., 2001)
+                // Younger children have higher switch costs
+                const switchCostScore = Math.max(0, Math.min(100,
+                    ((norms.switchCostCeiling - switchCost) / norms.switchCostCeiling) * 100));
+
+                // Accuracy scoring relative to age-appropriate floor
+                const accuracyRange = 1.0 - norms.accuracyFloor;
+                const accuracyScore = Math.max(0, Math.min(100,
+                    ((switchAccuracy - norms.accuracyFloor) / accuracyRange) * 100));
 
                 // Equal weighting: both switch cost and accuracy matter for flexibility
                 return (switchCostScore * 0.5) + (accuracyScore * 0.5);
             },
 
             calculateChoiceRTScore(medianRT, accuracy, age) {
-                // Choice RT reflects processing speed (Jensen, 2006)
-                // Typical range 300-700ms for school-age children; using 800ms ceiling
-                const rtScore = Math.max(0, Math.min(100, ((800 - medianRT) / 500) * 100));
+                const ageGroup = this.getAgeGroup(age);
+                const norms = this.AGE_NORMS_DETAILED.choiceRT[ageGroup];
+
+                // RT scoring with age-adjusted expectations (Kail, 1991; Fry & Hale, 1996)
+                const rtRange = norms.rtCeiling - norms.rtFloor;
+                const rtScore = Math.max(0, Math.min(100,
+                    ((norms.rtCeiling - medianRT) / rtRange) * 100));
 
                 // Accuracy reflects attention and response selection
                 const accuracyScore = accuracy * 100;
@@ -3113,6 +3331,8 @@
 
                     const header = document.createElement('div');
                     header.className = 'game-header';
+                    header.setAttribute('role', 'region');
+                    header.setAttribute('aria-label', 'Task instructions');
 
                     const titleEl = document.createElement('h2');
                     titleEl.className = 'game-title';
@@ -3126,6 +3346,7 @@
                     const continueBtn = document.createElement('button');
                     continueBtn.className = 'btn btn-lg btn-block';
                     continueBtn.textContent = 'Continue';
+                    continueBtn.setAttribute('aria-label', 'Continue to start the task');
                     continueBtn.style.marginTop = '2rem';
                     continueBtn.addEventListener('click', () => resolve());
 
@@ -3133,6 +3354,9 @@
                     header.appendChild(instructions);
                     this.elements.gameArea.appendChild(header);
                     this.elements.gameArea.appendChild(continueBtn);
+
+                    // Announce instructions to screen readers
+                    this.announce(`${title}. ${text}. Press the Continue button when ready.`, 'polite');
 
                     continueBtn.focus();
                 });
@@ -3147,7 +3371,11 @@
                 message.style.color = 'var(--text)';
                 message.style.padding = '3rem';
                 message.textContent = text;
+                message.setAttribute('role', 'status');
                 this.elements.gameArea.appendChild(message);
+
+                // Announce message to screen readers
+                this.announce(text, 'polite');
 
                 await this.delay(duration);
             },
