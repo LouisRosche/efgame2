@@ -362,7 +362,7 @@
         }
 
         .task-card:hover:not(.completed):not(.locked) {
-            transform: translateY(-8px) scale(1.02);
+            transform: scale(1.02);
             box-shadow: var(--shadow-lg);
             border-color: var(--primary-light);
             background: linear-gradient(135deg, var(--surface) 0%, #f8faff 100%);
@@ -1237,6 +1237,72 @@
                         <div class="chart-bars" id="chartBars"></div>
                     </div>
 
+                    <!-- Feedback Form -->
+                    <div id="feedbackSection" class="feedback-section" style="margin-top: 3rem; padding: 2rem; background: var(--surface); border-radius: var(--radius-lg); border: 2px solid var(--border-light);">
+                        <h3 style="text-align: center; margin-bottom: 1.5rem; color: var(--primary);">Help Us Make This Better!</h3>
+                        <p style="text-align: center; margin-bottom: 2rem; color: var(--text-muted);">Your feedback helps us improve for other students. This is optional!</p>
+
+                        <form id="feedbackForm">
+                            <div class="form-group">
+                                <label class="form-label">What did you like best?</label>
+                                <textarea id="feedbackLiked" class="form-input" rows="2" placeholder="The fun parts..."></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">What was confusing or hard?</label>
+                                <textarea id="feedbackConfusing" class="form-input" rows="2" placeholder="Things that didn't make sense..."></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">How would you rate the difficulty? (1 = Too Easy, 5 = Too Hard)</label>
+                                <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 0.5rem;">
+                                    <label style="cursor: pointer;"><input type="radio" name="difficulty" value="1"> 1</label>
+                                    <label style="cursor: pointer;"><input type="radio" name="difficulty" value="2"> 2</label>
+                                    <label style="cursor: pointer;"><input type="radio" name="difficulty" value="3" checked> 3</label>
+                                    <label style="cursor: pointer;"><input type="radio" name="difficulty" value="4"> 4</label>
+                                    <label style="cursor: pointer;"><input type="radio" name="difficulty" value="5"> 5</label>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Any other suggestions?</label>
+                                <textarea id="feedbackOther" class="form-input" rows="2" placeholder="Ideas for making it better..."></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-success btn-block" style="margin-top: 1rem;">Submit Feedback</button>
+                            <p id="feedbackThanks" style="display: none; text-align: center; margin-top: 1rem; color: var(--success); font-weight: 600;">Thank you! Your feedback has been saved!</p>
+                        </form>
+                    </div>
+
+                    <!-- Score Submission Section -->
+                    <div id="submissionSection" style="margin-top: 3rem; padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: var(--radius-lg); text-align: center; color: white;">
+                        <h3 style="font-size: 1.8rem; margin-bottom: 1rem; color: white;">🏆 Submit Your Scores!</h3>
+                        <p style="margin-bottom: 1.5rem; font-size: 1.1rem; color: white;">Get on the leaderboard by submitting your scores to your teacher!</p>
+
+                        <div style="background: rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 1.5rem; margin-bottom: 1.5rem; backdrop-filter: blur(10px);">
+                            <p style="font-weight: 600; margin-bottom: 0.5rem; color: white;">Quick Steps:</p>
+                            <ol style="text-align: left; max-width: 500px; margin: 0 auto; color: white; line-height: 1.8;">
+                                <li>Click "Export Data (CSV)" below to download your scores</li>
+                                <li>Click "Submit to Teacher" to open the submission form</li>
+                                <li>Upload the CSV file you just downloaded</li>
+                                <li>Done! 🎉</li>
+                            </ol>
+                        </div>
+
+                        <a href="https://docs.google.com/forms/d/e/1FAIpQLSfPQCQsV8peMwIujZnUlVgRjuDT3DXNwe-fCgOW_nvrvGAizg/viewform"
+                           target="_blank"
+                           class="btn"
+                           style="background: white; color: #667eea; font-size: 1.2rem; padding: 1.2rem 2.5rem; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); display: inline-block; text-decoration: none; margin: 0.5rem;">
+                            📤 Submit to Teacher (Manual Upload)
+                        </a>
+
+                        <button id="autoSubmitBtn" class="btn" style="background: #10b981; color: white; font-size: 1.2rem; padding: 1.2rem 2.5rem; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); margin: 0.5rem;">
+                            ⚡ Auto-Submit (One Click!)
+                        </button>
+
+                        <p id="submitStatus" style="margin-top: 1rem; font-weight: 600; font-size: 1.1rem; display: none;"></p>
+                    </div>
+
                     <div style="text-align: center; margin-top: 2rem; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
                         <button id="exportBtn" class="btn">Export Data (CSV)</button>
                         <button id="exportJSONBtn" class="btn">Export Data (JSON)</button>
@@ -1267,46 +1333,39 @@
             CONFIG: {
                 TASKS: [
                     {
-                        id: 'nback',
-                        name: 'Working Memory (N-Back)',
-                        icon: '🧩',
-                        description: 'Remember and match stimuli from N positions back',
-                        domain: 'Working Memory'
+                        id: 'choicert',
+                        name: 'Quick Reaction',
+                        icon: '⚡',
+                        description: 'Press the button that matches the shape as fast as you can',
+                        domain: 'Processing Speed'
                     },
                     {
                         id: 'digitspan',
-                        name: 'Digit Span',
+                        name: 'Number Memory',
                         icon: '🔢',
-                        description: 'Remember sequences of digits',
+                        description: 'Remember and repeat number sequences',
                         domain: 'Working Memory'
                     },
                     {
                         id: 'cpt',
-                        name: 'Sustained Attention (CPT)',
+                        name: 'Focus Challenge',
                         icon: '🎯',
-                        description: 'Detect target letters while avoiding distractors',
+                        description: 'Press SPACE only when you see the letter X',
                         domain: 'Attention'
                     },
                     {
                         id: 'stroop',
-                        name: 'Inhibitory Control (Stroop)',
+                        name: 'Color Game',
                         icon: '🎨',
-                        description: 'Name the color while ignoring the word',
+                        description: 'Name the color, not the word',
                         domain: 'Inhibitory Control'
                     },
                     {
                         id: 'taskswitching',
-                        name: 'Cognitive Flexibility',
+                        name: 'Rule Switch',
                         icon: '🔄',
-                        description: 'Switch between different classification rules',
+                        description: 'Follow the rule and switch when it changes',
                         domain: 'Cognitive Flexibility'
-                    },
-                    {
-                        id: 'choicert',
-                        name: 'Processing Speed',
-                        icon: '⚡',
-                        description: 'Respond quickly and accurately to stimuli',
-                        domain: 'Processing Speed'
                     }
                 ],
 
@@ -1316,7 +1375,7 @@
 
                 // Timing standards (milliseconds)
                 TIMING: {
-                    ISI: 1500,              // Inter-stimulus interval (n-back standard)
+                    ISI: 1500,              // Inter-stimulus interval (research standard)
                     STIMULUS_DURATION: 500, // Stimulus presentation time
                     FIXATION: 500,          // Fixation cross duration
                     ITI: 1000,              // Inter-trial interval
@@ -1553,7 +1612,11 @@
                     recommendations: document.getElementById('recommendations'),
                     recommendationsList: document.getElementById('recommendationsList'),
                     progressVisualization: document.getElementById('progressVisualization'),
-                    chartBars: document.getElementById('chartBars')
+                    chartBars: document.getElementById('chartBars'),
+                    feedbackForm: document.getElementById('feedbackForm'),
+                    feedbackThanks: document.getElementById('feedbackThanks'),
+                    autoSubmitBtn: document.getElementById('autoSubmitBtn'),
+                    submitStatus: document.getElementById('submitStatus')
                 };
             },
 
@@ -1605,8 +1668,15 @@
             // Bind event listeners
             bindEvents() {
                 // Login form
+                console.log('Binding login form event listener...', this.elements.loginForm);
+                if (!this.elements.loginForm) {
+                    console.error('Login form not found!');
+                    return;
+                }
                 this.elements.loginForm.addEventListener('submit', (e) => {
+                    console.log('Form submitted!', e);
                     e.preventDefault();
+                    console.log('Default prevented, calling handleLogin...');
                     this.handleLogin();
                 });
 
@@ -1620,6 +1690,15 @@
                 // Reset button
                 this.elements.resetBtn.addEventListener('click', () => this.reset());
 
+                // Feedback form
+                this.elements.feedbackForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.submitFeedback();
+                });
+
+                // Auto-submit button
+                this.elements.autoSubmitBtn.addEventListener('click', () => this.autoSubmit());
+
                 // Keyboard shortcuts
                 document.addEventListener('keydown', (e) => {
                     if (e.key === 'Escape' && this.state.currentTask) {
@@ -1630,32 +1709,47 @@
 
             // Handle login
             handleLogin() {
+                console.log('handleLogin called');
                 const nameInput = document.getElementById('name');
                 const ageInput = document.getElementById('age');
                 const gradeInput = document.getElementById('grade');
+
+                console.log('Input elements:', { nameInput, ageInput, gradeInput });
+                console.log('Input values:', {
+                    name: nameInput?.value,
+                    age: ageInput?.value,
+                    grade: gradeInput?.value
+                });
 
                 const name = this.sanitizeInput(nameInput.value.trim());
                 const age = parseInt(ageInput.value);
                 const grade = parseInt(gradeInput.value);
 
+                console.log('Processed values:', { name, age, grade });
+
                 // Validation
                 if (!name || name.length > 50) {
+                    console.log('Name validation failed');
                     this.showFeedback('Please enter a valid first name', 'error');
                     nameInput.focus();
                     return;
                 }
 
                 if (!age || age < 6 || age > 18) {
+                    console.log('Age validation failed:', age);
                     this.showFeedback('Please enter a valid age (6-18)', 'error');
                     ageInput.focus();
                     return;
                 }
 
                 if (!grade) {
+                    console.log('Grade validation failed:', grade);
                     this.showFeedback('Please select your grade', 'error');
                     gradeInput.focus();
                     return;
                 }
+
+                console.log('All validations passed!');
 
                 // Set user data
                 this.state.user = { name, age, grade };
@@ -1665,11 +1759,15 @@
                 this.state.taskData = {};
 
                 console.log('User logged in:', this.state.userId);
+                console.log('Calling showScreen("menu")...');
 
                 // Show menu
                 this.showScreen('menu');
+                console.log('Calling renderTasks()...');
                 this.renderTasks();
+                console.log('Showing success feedback...');
                 this.showFeedback(`Welcome, ${name}! Let's begin your assessment.`, 'success');
+                console.log('handleLogin complete');
             },
 
             // Sanitize user input to prevent XSS
@@ -1792,7 +1890,7 @@
 
             // Exit current task
             exitTask() {
-                if (confirm('Exit this task? Your progress will not be saved.')) {
+                if (confirm('Exit this task? Your progress on THIS task will not be saved, but completed tasks are safe.')) {
                     this.state.currentTask = null;
                     this.state.currentTrial = 0;
                     this.showScreen('menu');
@@ -2124,8 +2222,8 @@
 
                 // Instructions
                 await this.showInstructions(
-                    'Digit Span - Forward',
-                    'You will see a sequence of numbers.\nRemember them in order.\n\nThen enter them using the number pad.'
+                    'Number Memory - Forward',
+                    'You will see numbers one at a time.\nRemember them in order.\n\nThen type them back using the number buttons.'
                 );
 
                 // Forward span
@@ -2134,8 +2232,8 @@
                 await this.showMessage('Great! Now let\'s try backward span.', 2000);
 
                 await this.showInstructions(
-                    'Digit Span - Backward',
-                    'Now enter the digits in REVERSE order.\n\nFor example, if you see 1-2-3,\nenter 3-2-1.'
+                    'Number Memory - Backwards',
+                    'Now type the numbers in BACKWARDS order.\n\nFor example, if you see 1-2-3,\ntype 3-2-1.'
                 );
 
                 // Backward span
@@ -2263,7 +2361,7 @@
                 }
 
                 return maxSpan;
-            }
+            },
 
             // Show digit span result comparison
             async showDigitSpanResult(originalSequence, userResponse, expectedSequence, correct, direction) {
@@ -2509,8 +2607,8 @@
 
                 // Instructions
                 await this.showInstructions(
-                    'Sustained Attention Test (CPT)',
-                    `Press SPACE when you see the letter "${targetLetter}".\n\nIgnore all other letters.\n\nStay focused!`
+                    'Focus Challenge',
+                    `Press SPACE when you see the letter "${targetLetter}".\n\nDon't press anything for other letters.\n\nStay focused - you got this!`
                 );
 
                 // Run trials
@@ -2669,8 +2767,8 @@
 
                 // Instructions
                 await this.showInstructions(
-                    'Stroop Task - Inhibitory Control',
-                    'Press the key for the COLOR of the text, not the word.\n\n' +
+                    'Color Game',
+                    'Press the key for the COLOR you see, NOT the word.\n\n' +
                     'R = Red, B = Blue, G = Green, Y = Yellow\n\n' +
                     'Ignore what the word says!'
                 );
@@ -2815,8 +2913,8 @@
 
                 // Instructions
                 await this.showInstructions(
-                    'Task Switching - Cognitive Flexibility',
-                    'You will see numbers and two possible rules:\n\n' +
+                    'Rule Switch Game',
+                    'You will see numbers and two different rules:\n\n' +
                     'COLOR rule: Is the number RED or BLUE?\n' +
                     'MAGNITUDE rule: Is the number HIGH (≥5) or LOW (<5)?\n\n' +
                     'The rule will be shown before each number.'
@@ -3005,9 +3103,9 @@
 
                 // Instructions
                 await this.showInstructions(
-                    'Processing Speed - Choice RT',
-                    'Press the arrow key matching the arrow shown.\n\n' +
-                    'Respond as QUICKLY and ACCURATELY as possible!'
+                    'Quick Reaction Game',
+                    'Press the arrow key that matches the arrow on screen.\n\n' +
+                    'Go as FAST and ACCURATE as you can!'
                 );
 
                 await this.showMessage('Get ready!', 2000);
@@ -3458,16 +3556,38 @@
 
                     const value = document.createElement('div');
                     value.className = 'score-value';
-                    value.textContent = scores[task.id].score.toFixed(1);
+                    const score = scores[task.id].score;
+
+                    // Kid-friendly score display
+                    let displayText, emoji;
+                    if (score >= 90) {
+                        displayText = '⭐ Amazing!';
+                        emoji = '🏆';
+                    } else if (score >= 80) {
+                        displayText = '⭐ Great!';
+                        emoji = '🌟';
+                    } else if (score >= 70) {
+                        displayText = '⭐ Good!';
+                        emoji = '👍';
+                    } else if (score >= 60) {
+                        displayText = '⭐ Nice Try!';
+                        emoji = '💪';
+                    } else {
+                        displayText = '⭐ Keep Practicing!';
+                        emoji = '🎯';
+                    }
+
+                    value.textContent = displayText;
 
                     const label = document.createElement('div');
                     label.className = 'score-label';
-                    label.textContent = task.domain;
+                    label.textContent = task.name;
 
                     const percentile = document.createElement('div');
                     percentile.className = 'score-percentile';
-                    const taskPercentile = this.calculatePercentile(scores[task.id].score, this.state.user.age);
-                    percentile.textContent = `${taskPercentile}th percentile`;
+                    percentile.textContent = `Score: ${score.toFixed(0)}/100`;
+                    percentile.style.fontSize = '0.875rem';
+                    percentile.style.color = 'var(--text-muted)';
 
                     card.appendChild(icon);
                     card.appendChild(value);
@@ -3498,26 +3618,20 @@
 
                 // Domain-specific recommendations based on research
                 const recMap = {
-                    'nback': 'Practice chunking strategies and rehearsal techniques. Try memory palace methods.',
-                    'digitspan': 'Use verbal rehearsal and grouping strategies. Practice with phone numbers and sequences.',
-                    'cpt': 'Practice sustained focus with Pomodoro technique (25-min intervals). Try mindfulness meditation.',
-                    'stroop': 'Play games requiring response inhibition. Practice "Simon Says" type activities.',
-                    'taskswitching': 'Practice multitasking activities that require rule switching. Try puzzle games.',
-                    'choicert': 'Engage in reaction time games and sports. Practice timed academic tasks.'
+                    'digitspan': 'Practice remembering longer sequences of numbers. Try memorizing phone numbers!',
+                    'cpt': 'Practice focusing for longer periods. Try reading without distractions.',
+                    'stroop': 'Play games that make you think twice before responding. Simon Says is great!',
+                    'taskswitching': 'Practice switching between different activities quickly. Try puzzle games!',
+                    'choicert': 'Play reaction time games and sports. Practice making quick decisions.'
                 };
 
                 if (lowestTask.score < 70) {
-                    recommendations.push(`Focus on ${lowestTask.task.domain}: ${recMap[lowestTask.id]}`);
+                    recommendations.push(`${lowestTask.task.name}: ${recMap[lowestTask.id]}`);
                 }
 
-                // Check for specific patterns
-                const workingMemoryTasks = ['nback', 'digitspan'];
-                const wmScores = workingMemoryTasks
-                    .filter(id => scores[id])
-                    .map(id => scores[id].score);
-
-                if (wmScores.length > 0 && wmScores.every(s => s < 70)) {
-                    recommendations.push('Consider working memory training programs (e.g., Cogmed, dual n-back).');
+                // Check for working memory specifically
+                if (scores['digitspan'] && scores['digitspan'].score < 70) {
+                    recommendations.push('Try memory games and practice remembering shopping lists or directions.');
                 }
 
                 // Render recommendations
@@ -3572,6 +3686,66 @@
                     });
                 } else {
                     this.elements.progressVisualization.style.display = 'none';
+                }
+            },
+
+            async autoSubmit() {
+                // TODO: Replace with your actual Web App URL from AutoSubmitWebApp.gs
+                const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxOUTAvF_uB6EshMAYLVHidXRGcftXEHqg5AiYPZ0jYEgF41UhV-0lzKeMPynNz7cb1/exec';
+
+                if (WEB_APP_URL === 'YOUR_WEB_APP_URL_HERE') {
+                    this.elements.submitStatus.style.display = 'block';
+                    this.elements.submitStatus.style.color = '#f59e0b';
+                    this.elements.submitStatus.textContent = '⚠️ Auto-submit not configured yet. Please use manual upload or contact your teacher.';
+                    return;
+                }
+
+                // Disable button and show loading
+                this.elements.autoSubmitBtn.disabled = true;
+                this.elements.autoSubmitBtn.textContent = '⏳ Submitting...';
+                this.elements.submitStatus.style.display = 'block';
+                this.elements.submitStatus.style.color = '#667eea';
+                this.elements.submitStatus.textContent = 'Sending your scores to teacher...';
+
+                try {
+                    // Prepare data
+                    const submissionData = {
+                        user: {
+                            name: this.state.user.name,
+                            age: this.state.user.age,
+                            grade: this.state.user.grade
+                        },
+                        sessionId: this.state.sessionId,
+                        userId: this.state.userId,
+                        timestamp: new Date().toISOString(),
+                        taskData: this.state.taskData
+                    };
+
+                    // Send to Google Apps Script
+                    const response = await fetch(WEB_APP_URL, {
+                        method: 'POST',
+                        mode: 'no-cors', // Required for Google Apps Script
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(submissionData)
+                    });
+
+                    // Success (note: no-cors means we can't read response)
+                    this.elements.submitStatus.style.color = '#10b981';
+                    this.elements.submitStatus.textContent = '✅ Scores submitted successfully! You\'re on the leaderboard!';
+                    this.elements.autoSubmitBtn.textContent = '✅ Submitted!';
+
+                    // Log success
+                    console.log('Scores auto-submitted successfully');
+
+                } catch (error) {
+                    // Error
+                    console.error('Auto-submit error:', error);
+                    this.elements.submitStatus.style.color = '#ef4444';
+                    this.elements.submitStatus.textContent = '❌ Submission failed. Please try manual upload instead.';
+                    this.elements.autoSubmitBtn.disabled = false;
+                    this.elements.autoSubmitBtn.textContent = '⚡ Auto-Submit (One Click!)';
                 }
             },
 
@@ -3686,6 +3860,44 @@
                     });
 
                     setTimeout(() => confetti.remove(), duration);
+                }
+            },
+
+            submitFeedback() {
+                const feedback = {
+                    sessionId: this.state.sessionId,
+                    userId: this.state.userId,
+                    timestamp: new Date().toISOString(),
+                    liked: document.getElementById('feedbackLiked').value.trim(),
+                    confusing: document.getElementById('feedbackConfusing').value.trim(),
+                    difficulty: document.querySelector('input[name="difficulty"]:checked')?.value || '3',
+                    suggestions: document.getElementById('feedbackOther').value.trim(),
+                    age: this.state.user.age,
+                    grade: this.state.user.grade
+                };
+
+                // Save feedback to localStorage
+                try {
+                    const feedbackKey = 'neural_flow_feedback_v1';
+                    let allFeedback = [];
+
+                    const existing = localStorage.getItem(feedbackKey);
+                    if (existing) {
+                        allFeedback = JSON.parse(existing);
+                    }
+
+                    allFeedback.push(feedback);
+                    localStorage.setItem(feedbackKey, JSON.stringify(allFeedback));
+
+                    console.log('Feedback saved:', feedback);
+
+                    // Show thank you message
+                    this.elements.feedbackForm.style.display = 'none';
+                    this.elements.feedbackThanks.style.display = 'block';
+
+                } catch (error) {
+                    console.error('Could not save feedback:', error);
+                    this.showFeedback('Thank you for your feedback!', 'success');
                 }
             },
 
